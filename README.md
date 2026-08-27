@@ -70,6 +70,17 @@ curl "http://127.0.0.1:8504/api/sessions?cwd=/root/PiP/pi"   # → 200 []
 The React rewrite builds via `npm run build:react` (config
 `vite.react.config.ts`) and serves from the same `dist/client` seam.
 
+Once built, `plugins/pi-web/pi-web.sh` manages both processes as one unit:
+
+```bash
+cd plugins/pi-web
+./pi-web.sh start     # start sessiond + gateway, wait until socket + HTTP are ready
+./pi-web.sh status    # show PIDs, socket, and HTTP code
+./pi-web.sh stop      # stop both
+./pi-web.sh restart   # stop then start
+./pi-web.sh logs      # tail both log files
+```
+
 ## Secrets
 
 Real API keys live **only** in `plugins/pi-qwen-rotate/qwen-rotate.config.json`,
