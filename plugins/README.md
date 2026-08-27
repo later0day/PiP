@@ -6,11 +6,14 @@ Local working set of pi extensions/services. See the note below on layout.
 
 - **pi-qwen-rotate/** — locally-developed pi extension: registers a
   DashScope/Bailian (Qwen) provider and rotates across multiple API keys.
-  Version-controlled in *this* repo.
-- **pi-web-access/**, **pi-subagents/**, **pi-mcp-adapter/**, **pi-web/** —
-  independent clones of their respective upstreams (nicobailon / jmfederico).
-  Each keeps its own `.git` and is updated separately via `git pull`; they are
-  git-ignored here so this repo does not vendor or fork them.
+- **pi-web-access/**, **pi-subagents/**, **pi-mcp-adapter/** — pi **extension
+  packages** loaded into the pi CLI, originally cloned from their upstreams
+  (nicobailon). Now vendored into this repo (their nested `.git` dirs were
+  removed on flattening). Original upstream URLs + the commit each was at are
+  recorded in `../NESTED_REPOS_ORIGINS.txt`.
+- **pi-web/** — a standalone **web UI service** (fastify + vite + node-pty),
+  originally cloned from jmfederico/pi-web and carrying a local React 18
+  rewrite (`src/client-react/`) with a full-Chinese UI. Also vendored here.
 
 ## pi-qwen-rotate
 
