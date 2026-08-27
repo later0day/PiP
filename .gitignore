@@ -1,0 +1,42 @@
+# ============================================================================
+# Top-level PiP repo ignore rules (flattened from formerly-nested clones).
+# ============================================================================
+
+# --- Secrets: NEVER commit real API keys ---
+# The qwen-rotate rotation config holds live sk- provider keys.
+plugins/pi-qwen-rotate/qwen-rotate.config.json
+**/qwen-rotate.config.json
+.env
+**/.env
+*.pem
+*.key
+
+# --- Dependencies ---
+node_modules/
+**/node_modules/
+
+# --- Build output / artifacts ---
+dist/
+**/dist/
+.artifacts/
+**/.artifacts/
+*.tsbuildinfo
+**/*.tsbuildinfo
+packages/*/dist/
+packages/*/dist-chrome/
+packages/*/dist-firefox/
+
+# --- Runtime / tooling ---
+*.log
+**/*.log
+.playwright-cli/
+**/.playwright-cli/
+.pi-web/
+**/.pi-web/
+/plugins/pi-web/dev-plugins/
+/plugins/pi-web/docker/custom-image.d/*
+!/plugins/pi-web/docker/custom-image.d/.gitkeep
+
+# --- OS cruft ---
+.DS_Store
+**/.DS_Store

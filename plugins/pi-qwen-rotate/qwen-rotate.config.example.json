@@ -1,0 +1,19 @@
+{
+  "$schema-note": "pi-qwen-rotate config. Copy to qwen-rotate.config.json and fill in real keys, OR set env QWEN_ROTATE_KEYS (comma-separated) / QWEN_ROTATE_CONFIG (path to this file).",
+  "$compat-note": "Each model gets a DashScope-safe compat block by default (thinkingFormat=qwen, supportsDeveloperRole=false, supportsStore=false, supportsReasoningEffort=false). Add a per-model \"compat\": { ... } to override individual OpenAICompletionsCompat flags.",
+  "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "providerId": "qwen-rotate",
+  "providerName": "Qwen Rotate (DashScope)",
+  "keys": [
+    "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  ],
+  "strategy": "round-robin",
+  "cooldownMs": 60000,
+  "models": [
+    { "id": "glm-5.2",        "name": "GLM-5.2 (rotate)",        "reasoning": true,  "contextWindow": 131072, "maxTokens": 16384 },
+    { "id": "qwen3.8-max",    "name": "Qwen3.8 Max (rotate)",    "reasoning": true,  "contextWindow": 262144, "maxTokens": 32768 },
+    { "id": "qwen3-max",      "name": "Qwen3 Max (rotate)",      "reasoning": false, "contextWindow": 131072, "maxTokens": 32768 },
+    { "id": "qwen3-coder-plus","name": "Qwen3 Coder Plus (rotate)","reasoning": false,"contextWindow": 262144, "maxTokens": 65536 },
+    { "id": "deepseek-v4-pro","name": "DeepSeek V4 Pro (rotate)", "reasoning": true,  "contextWindow": 131072, "maxTokens": 32768 }
+  ]
+}

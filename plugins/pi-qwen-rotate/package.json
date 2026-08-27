@@ -1,0 +1,27 @@
+{
+  "name": "pi-qwen-rotate",
+  "version": "0.1.0",
+  "description": "Qwen/DashScope (Bailian) provider for Pi with multi-API-key rotation and automatic failover on auth/rate-limit errors.",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "extension",
+    "qwen",
+    "dashscope",
+    "bailian",
+    "api-key-rotation",
+    "failover"
+  ],
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*"
+  }
+}

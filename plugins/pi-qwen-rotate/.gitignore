@@ -1,0 +1,3 @@
+# Never commit real API keys
+qwen-rotate.config.json
+node_modules/

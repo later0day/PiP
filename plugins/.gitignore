@@ -1,0 +1,10 @@
+# Upstream clones — each keeps its own .git and is updated independently
+# (git pull) from its own origin. Not vendored into this top-level repo.
+/pi-web-access/
+/pi-subagents/
+/pi-mcp-adapter/
+/pi-web/
+
+# Never vendor node_modules or real API keys
+node_modules/
+pi-qwen-rotate/qwen-rotate.config.json

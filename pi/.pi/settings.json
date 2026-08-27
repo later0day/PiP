@@ -1,0 +1,8 @@
+{
+  "packages": [
+    "../../plugins/pi-web-access",
+    "../../plugins/pi-subagents",
+    "../../plugins/pi-mcp-adapter",
+    "../../plugins/pi-qwen-rotate"
+  ]
+}
