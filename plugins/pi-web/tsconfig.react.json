@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "exactOptionalPropertyTypes": false,
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@jmfederico/pi-web/plugin-api": ["./src/plugin-api.ts"],
+      "@jmfederico/pi-web/server-plugin-api": ["./src/server-plugin-api.ts"],
+      "@shared/*": ["./src/shared/*"],
+      "@api/*": ["./src/client/src/api/*"],
+      "@client/*": ["./src/client/src/*"]
+    }
+  },
+  "include": ["src/client-react/**/*.ts", "src/client-react/**/*.tsx", "vite.react.config.ts"],
+  "exclude": []
+}

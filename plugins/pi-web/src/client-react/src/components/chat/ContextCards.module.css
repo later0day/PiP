@@ -1,0 +1,147 @@
+/* ContextCards — Tailwind utilities from the real source translated to CSS
+   Modules over DSH-backed vars. Keyframes fade-in/fade-up ship globally in
+   bui-dsh-bridge.css. The source used a global `primitive-card-bar` helper class
+   (NOT part of the DSH bridge); its box (h-9-ish bar with px-3 padding) is
+   inlined here as `.cardBar` to avoid depending on an undefined global. */
+
+.root {
+  display: flex;
+  width: 100%;
+  max-width: 23.75rem; /* max-w-95 */
+  flex-direction: column;
+  gap: 8px; /* gap-2 */
+}
+
+/* count header */
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* gap-2 */
+  padding-left: 2px; /* px-0.5 */
+  padding-right: 2px;
+}
+
+.headTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.headCount {
+  display: inline-flex;
+  height: 20px; /* h-5 */
+  align-items: center;
+  border-radius: var(--radius-md);
+  background-color: var(--inset);
+  padding-left: 6px; /* px-1.5 */
+  padding-right: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  box-shadow: var(--shadow-hairline);
+  font-variant-numeric: tabular-nums;
+}
+
+/* chunk card */
+.card {
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background-color: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* replacement for the global `primitive-card-bar` helper */
+.cardBar {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* gap-2.5 */
+  border-bottom: 1px solid var(--line);
+  padding: 8px 12px; /* card-bar box */
+}
+
+.cardTitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px; /* gap-1.5 */
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.cardTitleText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardChars {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  padding: 8px 12px 4px; /* px-3 pt-2 pb-1 */
+  font-size: 12.5px;
+  line-height: 1.625; /* leading-relaxed */
+  color: var(--ink-2);
+}
+
+.chipRow {
+  padding-left: 12px; /* px-3 */
+  padding-right: 12px;
+  padding-bottom: 12px; /* pb-3 */
+}
+
+.sourceChip {
+  display: inline-flex;
+  height: 24px; /* h-6 */
+  align-items: center;
+  gap: 6px; /* gap-1.5 */
+  border-radius: 9999px;
+  background-color: var(--inset);
+  padding-left: 8px; /* px-2 */
+  padding-right: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  box-shadow: var(--shadow-btn);
+  transition:
+    opacity 300ms,
+    transform 300ms,
+    background-color 300ms;
+}
+.sourceChip:hover {
+  background-color: var(--hover);
+}
+
+.badge {
+  display: flex;
+  width: 14px; /* size-3.5 */
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 7px;
+  font-weight: 700;
+  color: #fff;
+}
+.badgeGreen {
+  background-color: var(--green);
+}
+.badgeRed {
+  background-color: var(--red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .head,
+  .card {
+    animation: none !important;
+  }
+  .sourceChip {
+    transition: none !important;
+  }
+}

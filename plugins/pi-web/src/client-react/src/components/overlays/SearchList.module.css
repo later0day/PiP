@@ -1,0 +1,149 @@
+/* SearchList — beautifului command search. Tailwind utilities from the real
+   source translated to CSS Modules over DSH bridge vars. `shadow-raised` maps to
+   the raised-card shadow (--shadow-card); `bg-inset` → --inset. Keyframe fade-in
+   ships globally in bui-dsh-bridge.css. */
+
+.wrap {
+  display: flex;
+  min-height: 248px;
+  width: 100%;
+  max-width: 288px; /* max-w-72 */
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.card {
+  width: 100%;
+  align-self: flex-start;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── input row ─────────────────────────────────────────────── */
+.inputRow {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 12px;
+  transition: background-color 100ms var(--ease);
+}
+
+.inputRow:hover {
+  background: var(--hover);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+}
+
+.input {
+  min-width: 0;
+  flex: 1 1 0%;
+  background: transparent;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.clear {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--ink-3);
+  transition: background-color 100ms var(--ease), color 100ms var(--ease);
+}
+
+.clear:hover {
+  /* hover:bg-line/70 — the line color at ~70% opacity */
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+  color: var(--ink);
+}
+
+/* ── empty state ───────────────────────────────────────────── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 32px 16px;
+}
+
+.emptyIcon {
+  margin-bottom: 6px;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: var(--inset);
+  color: var(--ink-3);
+  box-shadow: var(--shadow-hairline);
+}
+
+.emptyTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ── results ───────────────────────────────────────────────── */
+.results {
+  padding: 4px;
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.glideHighlight {
+  left: 0;
+  right: 0;
+  border-radius: 6px;
+  background: var(--hover);
+}
+
+.resultRow {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  height: 32px;
+  width: 100%;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0 8px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inputRow,
+  .clear {
+    transition: none !important;
+  }
+  .clear,
+  .emptyState,
+  .resultRow {
+    animation: none !important;
+  }
+}

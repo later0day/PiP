@@ -1,0 +1,281 @@
+/* ToolExecutionCard — mockup .toolCard: hairline card (r12) on bg-layer-1 with a
+   mono header + code-block body. Status variants tint the border/fill. */
+.card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  padding: 9px;
+  color: var(--ink);
+}
+
+.running,
+.pending {
+  border-color: var(--orange-border, var(--orange));
+  background: var(--orange-tint);
+}
+
+.success {
+  border-color: var(--green-border, var(--green));
+  background: var(--green-tint);
+}
+
+.error {
+  border-color: var(--red);
+  background: var(--red-tint);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.title {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.statusIcon {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+}
+
+.title strong {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.path,
+.summary {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  white-space: pre;
+  color: var(--accent);
+  font: 13px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.summary {
+  color: var(--ink-3);
+  font-family: inherit;
+}
+
+.meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.diffStats {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.added {
+  color: var(--green);
+}
+
+.removed {
+  color: var(--red);
+}
+
+.statusLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.notice {
+  margin: 0;
+  color: var(--orange);
+}
+
+.errorText {
+  margin: 0;
+  border: 1px solid var(--red);
+  border-radius: 7px;
+  background: var(--red-tint);
+  color: var(--red);
+  padding: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+}
+
+.textBody {
+  border-top: 1px solid var(--line-soft, var(--line));
+  padding-top: 6px;
+}
+
+.detailTarget,
+.detailResult {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.detailLabel {
+  color: var(--ink-3);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.textBody pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  color: var(--ink);
+}
+
+.detailResult pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: 7px;
+  background: var(--inset);
+  padding: 8px;
+  white-space: pre;
+  overflow-wrap: normal;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.detailTargetValue {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  font: 12px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.diffDetails {
+  min-width: 0;
+  max-width: 100%;
+  border-top: 1px solid var(--line-soft, var(--line));
+  padding-top: 6px;
+}
+
+.diffDetails > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.diffDetails > summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diffDetails > summary small {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+}
+
+.diff {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 8px 0 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: 7px;
+  background: var(--inset);
+  padding: 8px 0;
+  color: var(--ink-3);
+  font: 12px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  line-height: 1.45;
+}
+
+.diffContent {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+}
+
+.diff span {
+  display: block;
+  min-height: 1.45em;
+  padding: 0 8px;
+  white-space: pre;
+}
+
+.context {
+  color: var(--ink-3);
+}
+
+.hunk {
+  color: var(--accent);
+}
+
+.file,
+.meta {
+  color: var(--ink-3);
+}
+
+.diff .added {
+  background: var(--green-tint);
+}
+
+.diff .removed {
+  background: var(--red-tint);
+}
+
+.showMore {
+  justify-self: start;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 3px 7px;
+  font: 12px Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.showMore:hover,
+.showMore:focus-visible {
+  border-color: var(--accent);
+}

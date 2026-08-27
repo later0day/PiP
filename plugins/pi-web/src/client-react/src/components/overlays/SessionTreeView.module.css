@@ -1,0 +1,307 @@
+/* SessionTreeView — DSH-skinned port of the legacy session-tree navigator's tree
+ * step. ModalSurface owns portal/backdrop/focus-trap. --pi-* → DSH bridge vars;
+ * kind tones map onto accent / orange / green / purple / metadata. */
+.surface {
+  width: min(820px, calc(100vw - 40px));
+  max-height: min(680px, calc(100dvh - 40px));
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  max-height: min(680px, calc(100dvh - 40px));
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.header strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.close:focus-visible {
+  color: var(--ink);
+  outline: none;
+  box-shadow: var(--smooth-ring-tight);
+}
+
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 14px;
+}
+
+.intro p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.marker {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--line-strong, var(--line));
+}
+
+.markerPath {
+  background: var(--accent);
+}
+
+.markerLeaf {
+  box-shadow: 0 0 0 2px var(--accent);
+  background: var(--page);
+}
+
+.tree {
+  min-height: 0;
+  overflow: auto;
+  margin: 0 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface);
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.row {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 20px minmax(82px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px 7px calc(10px + var(--tree-indent, 0px));
+  border-bottom: 1px solid var(--line-soft, var(--line));
+  cursor: pointer;
+  outline: none;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row:hover {
+  background: var(--hover);
+}
+
+.rowSelected {
+  background: var(--accent-tint);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.rowActivePath:not(.rowSelected) {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.rowActiveLeaf {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.rowBookkeeping {
+  color: var(--ink-3);
+}
+
+.disclosure {
+  grid-column: 1;
+  grid-row: 1;
+  width: 20px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--ink-3);
+  font-size: 15px;
+  user-select: none;
+}
+
+.disclosure:not(.disclosureLeaf):hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.disclosureLeaf {
+  opacity: 0.5;
+}
+
+.metadata {
+  display: contents;
+}
+
+.kind {
+  grid-column: 2;
+  grid-row: 1;
+  --kind-border: var(--line);
+  --kind-background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid var(--kind-border);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--ink);
+  background: var(--kind-background);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tone_user {
+  --kind-border: color-mix(in srgb, var(--accent) 45%, var(--line));
+  --kind-background: var(--accent-tint);
+}
+.tone_assistant {
+  --kind-border: var(--line);
+  --kind-background: var(--surface);
+}
+.tone_tool {
+  --kind-border: color-mix(in srgb, var(--orange) 45%, var(--line));
+  --kind-background: var(--orange-tint);
+}
+.tone_shell {
+  --kind-border: color-mix(in srgb, var(--green) 45%, var(--line));
+  --kind-background: var(--green-tint);
+}
+.tone_context {
+  --kind-border: color-mix(in srgb, #9a5cff 45%, var(--line));
+  --kind-background: color-mix(in srgb, #9a5cff 12%, var(--surface));
+}
+.tone_metadata {
+  --kind-border: var(--line-soft, var(--line));
+  --kind-background: var(--inset);
+  color: var(--ink-3);
+}
+
+.entry {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.rowBookkeeping .summary {
+  color: var(--ink-3);
+}
+
+.label {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--radius-sm, 6px);
+  padding: 1px 5px;
+  background: var(--inset);
+  color: var(--ink-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.entry time {
+  color: var(--ink-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.badges {
+  grid-column: 4;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 5px;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badgePath {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--ink);
+}
+
+.badgeLeaf {
+  border: 1px solid var(--accent);
+  color: var(--ink);
+}
+
+.empty {
+  margin: 0 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  padding: 24px;
+  color: var(--ink-3);
+  background: var(--surface);
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .surface {
+    width: 100%;
+    max-height: 100dvh;
+  }
+  .inner {
+    max-height: 100dvh;
+  }
+}

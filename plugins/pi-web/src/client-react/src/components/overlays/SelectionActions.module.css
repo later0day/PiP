@@ -1,0 +1,325 @@
+/* SelectionActions — Tailwind utilities from the real source translated to CSS
+   Modules over DSH bridge vars. Keyframes pop-in/spin ship globally in
+   bui-dsh-bridge.css. */
+
+.root {
+  width: 100%;
+  max-width: 460px;
+}
+
+.host {
+  position: relative;
+  user-select: none;
+  padding-bottom: 48px; /* pb-12 */
+}
+
+.paragraph {
+  font-size: 13px;
+  line-height: 1.625; /* leading-relaxed */
+  color: var(--ink);
+}
+
+/* box-decoration-clone selection highlight */
+.selection {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--ink);
+}
+
+:global(body[data-ds-dark-theme]) .selection {
+  background: var(--accent-tint);
+}
+
+.anchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+/* the 36px pill wrapping 28px controls at a 4px inset */
+.bar {
+  display: flex;
+  height: 36px; /* h-9 */
+  width: fit-content;
+  max-width: calc(100vw - 48px);
+  align-items: center;
+  justify-content: center;
+  gap: 2px; /* gap-0.5 */
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--surface);
+  padding: 4px; /* p-1 */
+  font-family: var(--font-ui-family);
+  font-weight: 400;
+  color: var(--ink);
+  box-shadow: var(--shadow-overlay);
+}
+
+.content {
+  display: flex;
+  width: fit-content;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 2px; /* gap-0.5 */
+}
+
+/* control + primary button recipes */
+.control,
+.primary {
+  display: inline-flex;
+  height: 28px; /* h-7 */
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px; /* gap-1 */
+  border: 0;
+  border-radius: 9999px;
+  padding: 0 10px; /* px-2.5 */
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.control {
+  background: transparent;
+  font-size: 12px;
+  color: var(--ink);
+  transition-property: background-color, color, transform;
+  transition-duration: 150ms;
+}
+
+.control:hover {
+  background: var(--hover);
+}
+
+.control:active {
+  transform: scale(0.96);
+}
+
+.primary {
+  background: var(--ink);
+  font-size: 12.5px;
+  color: var(--canvas);
+  box-shadow: var(--shadow-hairline);
+  transition-property: opacity, transform;
+  transition-duration: 150ms;
+}
+
+.primary:hover {
+  opacity: 0.9;
+}
+
+.primary:active {
+  transform: scale(0.96);
+}
+
+/* busy indicator */
+.busy {
+  display: inline-flex;
+  height: 28px; /* h-7 */
+  align-items: center;
+  gap: 6px; /* gap-1.5 */
+  white-space: nowrap;
+  padding: 0 10px; /* px-2.5 */
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.spinner {
+  height: 12px; /* size-3 */
+  width: 12px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1.5px solid var(--line-strong);
+  border-top-color: var(--ink-2);
+}
+
+.busyLabel {
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+/* dividers */
+.divider {
+  margin: 0 2px; /* mx-0.5 */
+  height: 16px; /* h-4 */
+  width: 1px;
+  flex-shrink: 0;
+  background: var(--line);
+}
+
+.dividerStrong {
+  margin: 0 4px; /* mx-1 */
+  height: 16px; /* h-4 */
+  width: 1px;
+  flex-shrink: 0;
+  background: var(--line-strong);
+}
+
+/* retry button (result mode) */
+.retryBtn {
+  display: flex;
+  height: 28px; /* size-7 */
+  width: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition-property: background-color, color, transform;
+  transition-duration: 150ms;
+}
+
+.retryBtn:hover {
+  background: var(--hover-2);
+  color: var(--ink-2);
+}
+
+.retryBtn:active {
+  transform: scale(0.96);
+}
+
+/* idle: prompt input clip */
+.promptClip {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  transition-property: max-width, opacity, transform;
+  transition-duration: 400ms;
+}
+
+.promptForm {
+  display: flex;
+  height: 28px; /* h-7 */
+  flex-shrink: 0;
+  align-items: center;
+  transition-property: width;
+  transition-duration: 400ms;
+}
+
+.promptInput {
+  height: 28px; /* h-7 */
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding-right: 10px; /* pr-2.5 */
+  padding-left: 12px; /* pl-3 */
+  font-size: 12.5px;
+  color: var(--ink);
+  outline: none;
+}
+
+.promptInput::placeholder {
+  color: var(--ink-3);
+}
+
+/* idle: presets group */
+.presets {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px; /* gap-0.5 */
+  overflow: hidden;
+  transition-property: max-width, opacity, transform;
+  transition-duration: 400ms;
+}
+
+.moreClip {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px; /* gap-0.5 */
+  overflow: hidden;
+  transition-property: max-width, opacity, margin;
+  transition-duration: 400ms;
+}
+
+.chevronBtn {
+  display: flex;
+  height: 28px; /* size-7 */
+  width: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition-property: background-color, transform;
+  transition-duration: 200ms;
+}
+
+.chevronBtn:hover {
+  background: var(--hover);
+}
+
+.chevronBtn:active {
+  transform: scale(0.96);
+}
+
+.chevronInner {
+  display: flex;
+  transition-property: transform;
+  transition-duration: 400ms;
+}
+
+/* idle: send button clip */
+.sendClip {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  transition-property: max-width, opacity, transform;
+  transition-duration: 400ms;
+}
+
+.sendBtn {
+  display: flex;
+  height: 28px; /* size-7 */
+  width: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--ink);
+  color: var(--surface);
+  cursor: pointer;
+  transition-property: opacity, transform;
+  transition-duration: 200ms;
+}
+
+.sendBtn:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none !important;
+  }
+  .spinner {
+    animation: none !important;
+  }
+  .anchor,
+  .control,
+  .primary,
+  .retryBtn,
+  .promptClip,
+  .promptForm,
+  .presets,
+  .moreClip,
+  .chevronBtn,
+  .chevronInner,
+  .sendClip,
+  .sendBtn {
+    transition: none;
+  }
+}

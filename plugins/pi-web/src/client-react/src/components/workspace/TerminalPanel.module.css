@@ -1,0 +1,199 @@
+/* TerminalPanel — native React xterm host. Ported from the legacy
+ * <terminal-panel>, reskinned from --pi-* to the DSH --dsw-*-backed semantic
+ * tokens. The terminal surface uses --surface/--ink for xterm's own theme. */
+.shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--ink);
+  font: 14px var(--font-ui, system-ui, sans-serif);
+}
+
+.tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--canvas);
+  overflow-x: auto;
+}
+
+.tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 180px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 5px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--hover);
+}
+
+.tabSelected {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tabLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.tabClose {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tabClose:hover {
+  color: var(--red);
+}
+
+.newTab {
+  flex: 0 0 auto;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 5px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.newTab:hover {
+  background: var(--hover);
+}
+
+.notice {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.notice p {
+  margin: 3px 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.notice code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font: 12px var(--font-mono-family, ui-monospace, monospace);
+}
+
+.notice kbd {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--canvas);
+  padding: 0 4px;
+  font: 11px var(--font-mono-family, ui-monospace, monospace);
+}
+
+.notice button {
+  justify-self: end;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 6px 11px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notice button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.notice button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.noticeRunning {
+  border-color: var(--orange);
+}
+
+.noticeSucceeded {
+  border-color: var(--green);
+}
+
+.noticeFailed {
+  border-color: var(--red);
+}
+
+.danger {
+  color: var(--red);
+}
+
+.error {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--red);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--red-tint);
+}
+
+.muted {
+  margin: 10px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.host {
+  position: absolute;
+  inset: 0;
+  padding: 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.host :global(.xterm) {
+  height: 100%;
+}

@@ -1,0 +1,60 @@
+/* ============================================================================
+   theme entry — pulls the DSH --dsw-* token layer and the beautifului→DSH
+   bridge into one import. Order matters: raw DSH tokens first (they define the
+   --dsw-* values for light body + dark body[data-ds-dark-theme]), then the
+   bridge (rebinds beautifului's semantic vars + Tailwind utility classes onto
+   those tokens).
+   ============================================================================ */
+@import "./tokens/dsw-tokens.css";
+@import "./tokens/ds-scales.css";
+@import "./tokens/bui-dsh-bridge.css";
+@import "./tokens/pi-compat-bridge.css";
+
+/* ---- base reset / app frame ---- */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-ui-family, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+#root {
+  height: 100dvh;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ---- form-control reset ----
+   Native controls (<button>/<select>/<input>/<textarea>) don't inherit the
+   body font, and <select> keeps the UA dropdown chrome (native arrow, OS
+   border) unless appearance is cleared. Reset both globally so every control
+   wears the Inter UI face and the DSH skin its module gives it, with no
+   browser-native styling bleeding through. */
+button,
+select,
+input,
+textarea {
+  font-family: inherit;
+}
+
+/* Clear the UA dropdown chrome so <select>s wear their module's DSH skin. Real
+   form selects (settings, composer) draw their own chevron in their module;
+   breadcrumb selects (ContextBar) stay plain-text. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}

@@ -1,0 +1,239 @@
+/* ChatView — mockup reading column (.column): centered, max-width 736px, 16px
+   gap between turns. User turns render as right-aligned bubbles, assistant turns
+   as borderless markdown; other roles keep the labeled card treatment. */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  max-width: 736px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 4px 0 40px;
+  box-sizing: border-box;
+}
+
+/* user turn — right-aligned bubble (mockup .userRow / .bubble) */
+.userRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.bubble {
+  max-width: min(525px, 82%);
+  padding: 10px 16px;
+  border-radius: 22px;
+  background: var(--dsw-specific-bubble);
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.bubble :is(p, pre):first-child {
+  margin-top: 0;
+}
+
+.bubble :is(p, pre):last-child {
+  margin-bottom: 0;
+}
+
+/* assistant turn — borderless markdown block (mockup .assistant) */
+.assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  line-height: 28px;
+}
+
+.scrollMarker {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--red);
+  border-radius: var(--radius-md, 10px);
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.loading {
+  color: var(--ink-3);
+  padding: 12px 0;
+}
+
+.msg {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card, 12px);
+  background: var(--surface);
+  overflow: visible;
+}
+
+.user {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.assistant {
+  background: var(--surface);
+}
+
+.tool {
+  border-color: var(--orange-border, var(--orange));
+  background: var(--orange-tint);
+  color: var(--ink);
+}
+
+.system {
+  color: var(--red);
+}
+
+.bash {
+  border-color: var(--green-border, var(--green));
+  background: var(--green-tint);
+}
+
+.skill {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface);
+  padding: 8px 10px;
+}
+
+.skill summary,
+.skill strong {
+  color: var(--accent);
+}
+
+.skill small {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--ink-3);
+}
+
+.msgHeader {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.eventGroup {
+  padding: 0;
+  border-color: var(--line);
+  background: var(--page);
+  color: var(--ink-3);
+}
+
+.groupSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-card, 12px) var(--radius-card, 12px) 0 0;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.groupBody {
+  padding: 0 12px 12px;
+}
+
+.groupMsg {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft, var(--line));
+  color: var(--ink);
+  overflow: visible;
+}
+
+.groupMsg.tool {
+  color: var(--orange);
+  border-radius: 0;
+  background: transparent;
+}
+
+.groupMsg.system {
+  color: var(--red);
+}
+
+.groupMsg.bash {
+  color: var(--green);
+  border-radius: 0;
+  background: transparent;
+}
+
+.thinking {
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: var(--radius-md, 8px);
+  background: var(--inset);
+  padding: 8px 10px;
+  margin: 6px 0 0;
+  color: var(--ink-2);
+}
+
+.thinking summary {
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.toolLine {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--orange);
+}
+
+.summary {
+  color: var(--ink-3);
+  margin-left: 6px;
+}
+
+.shellOutput {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font: 13px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  line-height: 1.45;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.chatImage {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 8px 0 0;
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: var(--radius-md, 8px);
+  object-fit: contain;
+}
+
+.askRecord {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.part + .part {
+  margin-top: 10px;
+}

@@ -1,0 +1,7 @@
+/* CodeViewer — read-only CodeMirror host. Fills its parent; the editor scrolls
+ * internally. */
+.host {
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+}

@@ -1,0 +1,279 @@
+/* SettingsPackagesPanel — DSH-skinned port of the Lit settings-packages-panel
+ * styles. Self-contained (includes the frame-level panel/notice classes so the
+ * component references a single CSS module), matching the sibling panels. */
+.panel {
+  display: block;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.headingCopy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.headingCopy h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.headingCopy p {
+  margin: 0;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+.notice {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface);
+  padding: 12px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.notice.error {
+  border-color: var(--red, #c0392b);
+  color: var(--red, #c0392b);
+  background: var(--red-tint, color-mix(in srgb, var(--red, #c0392b) 10%, var(--surface)));
+}
+
+.notice.success {
+  border-color: var(--green, #2e7d32);
+  color: var(--green, #2e7d32);
+  background: var(--green-tint, color-mix(in srgb, var(--green, #2e7d32) 10%, var(--surface)));
+}
+
+.notice.security {
+  border-color: var(--line-strong, var(--line));
+  color: var(--ink);
+  background: var(--inset);
+}
+
+h3,
+p {
+  margin: 0;
+}
+
+h3 {
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+p,
+small {
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+label {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.button,
+.secondary {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 7px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled),
+.secondary:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.button:disabled,
+.secondary:disabled,
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.secondary {
+  flex: 0 0 auto;
+}
+
+.danger {
+  border-color: color-mix(in srgb, var(--red, #c0392b) 55%, var(--line));
+  color: var(--red, #c0392b);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--red-tint, color-mix(in srgb, var(--red, #c0392b) 10%, var(--surface)));
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--field);
+  color: var(--ink);
+  padding: 8px 9px;
+  font: inherit;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.loadingCard,
+.installCard,
+.packageCard,
+.knownPackageCard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card, 14px);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.loadingCard,
+.actionNote {
+  color: var(--ink-3);
+}
+
+.fieldError {
+  color: var(--red, #c0392b);
+  font-size: 12px;
+}
+
+.installCard {
+  display: grid;
+  gap: 8px;
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 14px;
+}
+
+.installRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.packageSection {
+  display: block;
+}
+
+.knownPackageSection {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.knownPackageList {
+  display: grid;
+  gap: 10px;
+}
+
+.knownPackageCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.actionNote {
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.packageToolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.packageToolbar > div,
+.packageMain {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.packageList {
+  display: grid;
+  gap: 10px;
+}
+
+.packageCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.packageCard.filtered {
+  opacity: 0.82;
+}
+
+.packageMain strong {
+  color: var(--ink);
+}
+
+.packageMain strong,
+.packageMain small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.packageActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+code {
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: var(--radius-sm, 6px);
+  background: var(--field);
+  padding: 1px 4px;
+  color: var(--ink);
+  font: 12px var(--font-mono-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .packageToolbar {
+    display: grid;
+    gap: 12px;
+  }
+  .packageToolbar .secondary {
+    justify-self: start;
+  }
+  .installRow,
+  .packageCard,
+  .knownPackageCard {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .packageActions {
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+  .packageMain strong,
+  .packageMain small {
+    white-space: normal;
+  }
+}

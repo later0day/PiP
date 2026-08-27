@@ -1,0 +1,508 @@
+/* InsightCards — Tailwind utilities from the real source translated to CSS
+   Modules over DSH bridge vars. The charts are REAL inline SVG; the original's
+   external insight-chart-* globals are baked in here (stage/cursor/tooltip).
+   Colors flow from the DSH vars so light/dark switch automatically. */
+
+.root {
+  min-height: 408px;
+  width: 100%;
+  max-width: 344px; /* max-w-86 */
+}
+
+/* pager header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.headerName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.headerCount {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pagerBtn {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink-3);
+  transition-property: background-color, color, transform;
+  transition-duration: 100ms;
+}
+
+.pagerBtn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.pagerBtn:active {
+  transform: scale(0.96);
+}
+
+/* page content */
+.content {
+  transition-property: opacity, filter;
+  transition-duration: 250ms;
+}
+
+.prose {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.625;
+  color: var(--ink-2);
+}
+
+.proseStrong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.cardSlot {
+  margin-top: 8px;
+}
+
+.pill {
+  margin-top: 8px;
+  border-radius: 9999px;
+  background: var(--surface);
+  padding: 6px 12px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--ink);
+  border: 0;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: background-color 100ms var(--ease);
+}
+
+.pill:hover {
+  background: var(--hover);
+}
+
+/* shared chart card shell */
+.chartCard {
+  min-height: 278px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 12px;
+  box-shadow: var(--shadow-hairline);
+}
+
+/* CompareCard legend */
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.legendCol {
+  flex: 1;
+}
+
+.legendName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+}
+
+.deltaRed,
+.deltaGreen {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.deltaRed {
+  color: var(--red);
+}
+
+.deltaGreen {
+  color: var(--green);
+}
+
+/* inset chart frame */
+.inset {
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--inset);
+  box-shadow: var(--shadow-hairline);
+}
+
+.insetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 10px;
+}
+
+.insetLabel {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  border-radius: 9999px;
+  background: var(--field);
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* chart stage */
+.stage {
+  position: relative;
+  height: 166px;
+  touch-action: none;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line-strong);
+  pointer-events: none;
+}
+
+.tooltipAnchor {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--tooltip-bg);
+  padding: 6px 8px;
+  box-shadow: var(--shadow-overlay);
+}
+
+.tooltipItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono-family);
+  font-size: 11px;
+  color: var(--tooltip-fg);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tooltipDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+}
+
+/* AnomalyCard */
+.anomalyHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.anomalyTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.toggle {
+  display: flex;
+  border-radius: 9999px;
+  background: var(--field);
+  padding: 2px;
+}
+
+.toggleBtn,
+.toggleBtnActive {
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  transition-property: background-color, color, box-shadow, transform;
+  transition-duration: 150ms;
+}
+
+.toggleBtn {
+  color: var(--ink-3);
+}
+
+.toggleBtn:hover {
+  color: var(--ink-2);
+}
+
+.toggleBtnActive {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-btn);
+}
+
+.toggleBtn:active,
+.toggleBtnActive:active {
+  transform: scale(0.96);
+}
+
+.spentRow {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.spentValue {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.spentSub {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* AllocationCard */
+.allocTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.allocBadge {
+  display: flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--orange);
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.allocHero {
+  margin-top: 4px;
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.allocBar {
+  margin-top: 12px;
+  display: flex;
+  height: 36px;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--field);
+  padding: 2px;
+}
+
+.allocSeg {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 0;
+  cursor: pointer;
+  transition-property: opacity, transform, box-shadow;
+  transition-duration: 300ms;
+}
+
+.allocSeg:active {
+  transform: scale(0.98);
+}
+
+.allocSegGlow {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+  transition-property: width, opacity;
+  transition-duration: 500ms;
+}
+
+.allocLegend {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.allocChip,
+.allocChipActive {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 9999px;
+  padding: 2px 6px;
+  font-size: 11px;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  transition-property: background-color, color, transform;
+  transition-duration: 150ms;
+}
+
+.allocChip {
+  color: var(--ink-2);
+}
+
+.allocChip:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.allocChipActive {
+  background: var(--field);
+  color: var(--ink);
+}
+
+.allocChip:active,
+.allocChipActive:active {
+  transform: scale(0.96);
+}
+
+.allocChipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.allocNote {
+  margin-top: 12px;
+  min-height: 64px;
+  border-radius: var(--radius-control);
+  background: var(--inset);
+  padding: 8px 10px;
+  box-shadow: var(--shadow-hairline);
+}
+
+.allocNoteLabel {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.allocNoteBody {
+  margin-top: 4px;
+  display: block;
+  font-size: 11px;
+  line-height: 1.625;
+  color: var(--ink-3);
+}
+
+/* inline entity + mono */
+.entity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: baseline;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.entityDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+}
+
+.monoRed,
+.monoGreen {
+  font-family: var(--font-mono-family);
+  font-size: 11.5px;
+}
+
+.monoRed {
+  color: var(--red);
+}
+
+.monoGreen {
+  color: var(--green);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagerBtn,
+  .content,
+  .pill,
+  .toggleBtn,
+  .toggleBtnActive,
+  .allocSeg,
+  .allocSegGlow,
+  .allocChip,
+  .allocChipActive {
+    transition: none;
+  }
+}

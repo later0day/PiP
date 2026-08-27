@@ -1,0 +1,35 @@
+/* ModalSurface — dim + centered rounded panel with the overlay shadow. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 38%);
+  animation: fade-in 0.12s var(--ease, ease);
+}
+
+.surface {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 40px));
+  max-height: min(640px, calc(100vh - 40px));
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl, 18px);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-overlay, 0 20px 60px rgb(0 0 0 / 28%));
+  outline: none;
+  overflow: hidden;
+  animation: fade-up 0.16s var(--ease, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .surface {
+    animation: none;
+  }
+}

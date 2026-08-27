@@ -1,0 +1,104 @@
+/* LoadingState (#1) — Tailwind utilities from the real source translated to
+   CSS Modules over DSH-backed vars. Keyframes pixel-on/shimmer-text/pop-in ship
+   globally in bui-dsh-bridge.css. */
+
+.row {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px; /* gap-2.5 — the signature status gap */
+}
+
+.grid {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(3, 4px);
+  gap: 1.5px;
+}
+
+.pixelSquare,
+.pixelRound {
+  width: 4px;
+  height: 4px;
+  background: var(--ink);
+}
+
+.pixelSquare {
+  border-radius: 1px;
+}
+
+.pixelRound {
+  border-radius: 9999px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.elapsed {
+  font-family: var(--font-mono-family);
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Surfer variant */
+.surferCol {
+  display: flex;
+  width: fit-content;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.card {
+  margin-top: 8px;
+  width: 224px; /* w-56 */
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: var(--shadow-overlay);
+  animation: pop-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top left;
+}
+
+.videoWrap {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: var(--tooltip-bg);
+}
+
+.video {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.videoFallback {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.videoMuted {
+  padding: 0 12px;
+  text-align: center;
+  font-family: var(--font-mono-family);
+  font-size: 10px;
+  color: var(--tooltip-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixelSquare,
+  .pixelRound {
+    animation: none !important;
+    opacity: 0.15 !important;
+  }
+  .card {
+    animation: none;
+  }
+}

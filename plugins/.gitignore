@@ -1,9 +1,5 @@
-# Upstream clones — each keeps its own .git and is updated independently
-# (git pull) from its own origin. Not vendored into this top-level repo.
-/pi-web-access/
-/pi-subagents/
-/pi-mcp-adapter/
-/pi-web/
+# Flattened into the top-level PiP repo — the formerly-nested upstream clones
+# (pi-web, pi-subagents, pi-mcp-adapter, pi-web-access) are now vendored here.
 
 # Never vendor node_modules or real API keys
 node_modules/

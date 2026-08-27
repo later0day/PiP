@@ -1,0 +1,111 @@
+/* Markdown body — legacy formattedTextStyles ported to DSH --dsw-*-backed tokens. */
+.formatted {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+  text-align: start;
+  unicode-bidi: plaintext;
+  color: var(--ink);
+  font: var(--font-chat, 15px/24px Inter, system-ui, sans-serif);
+}
+
+.formatted :is(p, ul, ol, pre, blockquote, table) {
+  margin: 0 0 10px;
+}
+
+.formatted :is(p, ul, ol, pre, blockquote, table):last-child {
+  margin-bottom: 0;
+}
+
+/* Phase 6k: the body is now a column of segments — HTML runs interleaved with
+   CodeBlock cards. Gap them evenly; the HTML run keeps its own inner spacing. */
+.formatted {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.htmlSegment > :is(p, ul, ol, pre, blockquote, table):last-child {
+  margin-bottom: 0;
+}
+
+.formatted ul,
+.formatted ol {
+  padding-left: 22px;
+}
+
+.formatted li + li {
+  margin-top: 3px;
+}
+
+.formatted code {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--inset);
+  padding: 1px 4px;
+  font: 13px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.formatted pre {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  background: var(--inset);
+  padding: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.formatted pre code {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.formatted blockquote {
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
+  color: var(--ink-3);
+}
+
+.formatted a {
+  color: var(--accent);
+}
+
+.formatted :is(h1, h2, h3, h4) {
+  margin: 14px 0 8px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.formatted :is(h1, h2, h3, h4):first-child {
+  margin-top: 0;
+}
+
+.formatted h1 { font-size: 20px; }
+.formatted h2 { font-size: 17px; }
+.formatted h3 { font-size: 15px; }
+.formatted h4 { font-size: 14px; }
+
+.formatted table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+}
+
+.formatted :is(th, td) {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  max-width: 48ch;
+  overflow-wrap: anywhere;
+}
+
+.formatted th {
+  background: var(--surface);
+}

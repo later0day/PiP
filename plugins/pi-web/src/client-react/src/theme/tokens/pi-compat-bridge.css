@@ -1,0 +1,70 @@
+/* ============================================================================
+   Legacy --pi-*  →  DSH (--dsw-*-backed semantic) token bridge
+   ----------------------------------------------------------------------------
+   apiVersion:2 plugin panels (git / info / updates / workspace-tasks) are Lit
+   templates authored against the ~38 legacy --pi-* tokens, which the old
+   index.html defined as a single GitHub-dark palette. Rebinding them onto the
+   DSH-backed semantic vars (see bui-dsh-bridge.css) makes those panels adopt
+   the DSH skin and follow light/dark automatically — no per-plugin change.
+   Scoped to :root so it colors both the React tree and any lit-rendered
+   subtree mounted via <LitPanelHost>.
+   ============================================================================ */
+:root {
+  /* fonts */
+  --pi-control-font-size: 14px;
+  --pi-control-font-family: var(--font-ui, system-ui, sans-serif);
+  --pi-control-monospace-font-family: var(--font-mono-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+
+  /* surfaces */
+  --pi-bg: var(--page);
+  --pi-surface: var(--surface);
+  --pi-surface-hover: var(--hover);
+  --pi-terminal-bg: var(--surface);
+  --pi-terminal-text: var(--ink);
+
+  /* lines */
+  --pi-border: var(--line);
+  --pi-border-muted: var(--line-soft);
+
+  /* text */
+  --pi-text: var(--ink);
+  --pi-text-secondary: var(--ink-2);
+  --pi-text-bright: var(--ink);
+  --pi-muted: var(--ink-2);
+  --pi-dim: var(--ink-3);
+
+  /* accent */
+  --pi-accent: var(--accent);
+  --pi-accent-border: var(--accent);
+  --pi-selection-bg: var(--accent-tint);
+  --pi-terminal-selection: var(--accent-tint);
+
+  /* success */
+  --pi-success: var(--green);
+  --pi-success-border: var(--green);
+  --pi-success-bg: var(--green-tint);
+  --pi-success-surface: var(--green-tint);
+  --pi-success-ring: var(--green-tint);
+
+  /* warning */
+  --pi-warning: var(--orange);
+  --pi-warning-border: var(--orange);
+  --pi-warning-surface: var(--orange-tint);
+
+  /* danger */
+  --pi-danger: var(--red);
+
+  /* purple (no DSH equivalent — reuse accent family) */
+  --pi-purple: var(--accent);
+  --pi-purple-border: var(--accent);
+  --pi-purple-surface: var(--accent-tint);
+
+  /* overlays + shadows */
+  --pi-overlay: rgba(0, 0, 0, 0.5);
+  --pi-shadow-soft: rgba(0, 0, 0, 0.35);
+  --pi-shadow: rgba(0, 0, 0, 0.5);
+  --pi-shadow-strong: rgba(0, 0, 0, 0.7);
+  --pi-bg-overlay-soft: color-mix(in srgb, var(--page) 87%, transparent);
+  --pi-bg-overlay: color-mix(in srgb, var(--page) 90%, transparent);
+  --pi-success-bg-overlay: color-mix(in srgb, var(--green-tint) 93%, transparent);
+}
