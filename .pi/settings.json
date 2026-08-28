@@ -1,0 +1,7 @@
+{
+  "packages": [
+    "../plugins/pi-mcp-adapter",
+    "../plugins/pi-subagents",
+    "../plugins/pi-web-access"
+  ]
+}
