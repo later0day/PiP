@@ -1,6 +1,6 @@
 ./plugins  origin=(none)  branch=master  head=08aaadd9ead7a7eeb716fd16bac5f5b31e76043c
 ./pi  origin=https://github.com/earendil-works/pi.git  branch=local  head=6c87d9a026677b601e8278030dcf1ad97fe0bd86
-./plugins/pi-mcp-adapter  origin=https://github.com/nicobailon/pi-mcp-adapter  branch=main  head=6c08147f7a3c6eba670fa8fb73e1fe68a7ab471f
-./plugins/pi-subagents  origin=https://github.com/nicobailon/pi-subagents  branch=main  head=8fc31321d11edbe2d45a77b349c500e99f8f95f5
+./plugins/pi-mcp-adapter  origin=https://github.com/nicobailon/pi-mcp-adapter  branch=main  head=f3192880de5e87a2ceb2cb5820e50a91eb5ebcb2
+./plugins/pi-subagents  origin=https://github.com/nicobailon/pi-subagents  branch=main  head=510ecaa55a339a91710c2d4dc41d9e5097b0aaf6
 ./plugins/pi-web  origin=https://github.com/agegr/pi-web  branch=main  head=v0.8.11 (npm @agegr/pi-web; replaced the earlier jmfederico/pi-web vendor)
-./plugins/pi-web-access  origin=https://github.com/nicobailon/pi-web-access  branch=main  head=e4bc200abce827fba0132a5b9668a90121b72839
+./plugins/pi-web-access  origin=https://github.com/nicobailon/pi-web-access  branch=main  head=01815294f2558edf4a5dea7de962720a97262c44
