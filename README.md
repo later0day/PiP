@@ -23,6 +23,15 @@ extensions/services developed and run against it locally.
 Upstream origins and the commit each vendored clone was flattened from are
 recorded in [`NESTED_REPOS_ORIGINS.txt`](NESTED_REPOS_ORIGINS.txt).
 
+To check whether any upstream has moved past the recorded baseline:
+
+```bash
+scripts/check-upstreams.sh            # report status (git ls-remote + npm)
+scripts/check-upstreams.sh --update   # rewrite recorded baselines to upstream
+                                       # tips (records the move; does NOT
+                                       # re-vendor the code)
+```
+
 ## Build & run
 
 ### Pi runtime

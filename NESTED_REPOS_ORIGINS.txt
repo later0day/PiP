@@ -1,5 +1,5 @@
 ./plugins  origin=(none)  branch=master  head=08aaadd9ead7a7eeb716fd16bac5f5b31e76043c
-./pi  origin=https://github.com/earendil-works/pi.git  branch=local  head=3cb628688d1a19176e1feba7f86da50991279a45
+./pi  origin=https://github.com/earendil-works/pi.git  branch=local  head=6c87d9a026677b601e8278030dcf1ad97fe0bd86
 ./plugins/pi-mcp-adapter  origin=https://github.com/nicobailon/pi-mcp-adapter  branch=main  head=6c08147f7a3c6eba670fa8fb73e1fe68a7ab471f
 ./plugins/pi-subagents  origin=https://github.com/nicobailon/pi-subagents  branch=main  head=8fc31321d11edbe2d45a77b349c500e99f8f95f5
 ./plugins/pi-web  origin=https://github.com/agegr/pi-web  branch=main  head=v0.8.11 (npm @agegr/pi-web; replaced the earlier jmfederico/pi-web vendor)
