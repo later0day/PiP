@@ -1,7 +1,14 @@
 export interface PublicSubagentExecutionParams {
 	action?: unknown;
+	mode?: unknown;
+	repo?: unknown;
+	planId?: unknown;
 	agent?: unknown;
 	task?: unknown;
+	handoffPath?: unknown;
+	laneId?: unknown;
+	merge?: unknown;
+	supersession?: unknown;
 	step?: unknown;
 	tasks?: unknown;
 	chain?: unknown;
@@ -12,8 +19,10 @@ export interface PublicSubagentExecutionParams {
 	config?: unknown;
 	workflowScript?: unknown;
 	workflowScriptPath?: unknown;
+	preflight?: unknown;
 	isolation?: unknown;
 	worktree?: unknown;
+	lane?: unknown;
 	async?: unknown;
 	output?: unknown;
 	resume?: unknown;
@@ -22,6 +31,7 @@ export interface PublicSubagentExecutionParams {
 	workflowKey?: unknown;
 	workflowChildAsyncId?: unknown;
 	workflowAwaitAsync?: unknown;
+	workflowAwaitDetached?: unknown;
 	workflowParentDeadlineAt?: unknown;
 	suppressRoutineResultIntercom?: unknown;
 	runFanoutBudget?: unknown;
@@ -38,11 +48,14 @@ export type PublicSubagentExecutionNormalization<T> =
  * Enforce the public execution cutover before requests reach the executor.
  * Internal runs.run children and structured owned delegation bypass this boundary.
  */
-export function normalizePublicSubagentExecution<T extends PublicSubagentExecutionParams>(params: T, options: { asyncByDefault?: boolean } = {}): PublicSubagentExecutionNormalization<T> {
+export function normalizePublicSubagentExecution<T extends PublicSubagentExecutionParams>(params: T): PublicSubagentExecutionNormalization<T> {
 	if (params.workflowScript !== undefined && params.workflowScriptPath !== undefined) {
 		return { ok: false, error: "workflowScript and workflowScriptPath are mutually exclusive.", mode: "workflow" };
 	}
 	const hasWorkflowInput = params.workflowScript !== undefined || params.workflowScriptPath !== undefined;
+	if (params.preflight !== undefined && !hasWorkflowInput) {
+		return { ok: false, error: "preflight requires workflowScript or workflowScriptPath.", mode: params.action === undefined ? "workflow" : "management" };
+	}
 	const hasValidWorkflowInput = (typeof params.workflowScript === "string" && Boolean(params.workflowScript.trim()))
 		|| (typeof params.workflowScriptPath === "string" && Boolean(params.workflowScriptPath.trim()));
 	if (params.isolation !== undefined) {
@@ -59,7 +72,7 @@ export function normalizePublicSubagentExecution<T extends PublicSubagentExecuti
 	if (params.runFanoutBudget !== undefined || params.runFanoutAdmitted !== undefined) {
 		return { ok: false, error: "Public execution does not accept internal run fan-out fields.", mode: hasWorkflowInput ? "workflow" : "management" };
 	}
-	if (params.workflowParentRunId !== undefined || params.workflowKey !== undefined || params.workflowChildAsyncId !== undefined || params.workflowAwaitAsync !== undefined || params.workflowParentDeadlineAt !== undefined || params.suppressRoutineResultIntercom !== undefined) {
+	if (params.workflowParentRunId !== undefined || params.workflowKey !== undefined || params.workflowChildAsyncId !== undefined || params.workflowAwaitAsync !== undefined || params.workflowAwaitDetached !== undefined || params.workflowParentDeadlineAt !== undefined || params.suppressRoutineResultIntercom !== undefined) {
 		return { ok: false, error: "Public execution does not accept internal workflow child fields.", mode: hasWorkflowInput ? "workflow" : "management" };
 	}
 	const action = params.action;

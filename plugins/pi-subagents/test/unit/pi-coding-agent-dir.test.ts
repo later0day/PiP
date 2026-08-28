@@ -158,6 +158,41 @@ Inspect env.
 		assert.equal(fs.existsSync(path.join(agentDir, "agents", `${createdName}.md`)), true);
 	});
 
+	it("ignores nested .pi and sync-backups agent definitions", () => {
+		const userAgentsDir = path.join(agentDir, "agents");
+		const rootAgentPath = path.join(userAgentsDir, "root-agent.md");
+		writeFile(rootAgentPath, `---
+name: root-agent
+description: Root agent
+---
+
+Use the configured root agent.
+`);
+		const nestedBackupAgentPath = path.join(userAgentsDir, ".pi", "agent", "sync-backups", "20260712-163714", "agents", "stale.md");
+		writeFile(nestedBackupAgentPath, `---
+name: stale
+model: nonexistent/model
+description: Stale backup agent
+---
+
+This definition must not be executable.
+`);
+		const directBackupAgentPath = path.join(userAgentsDir, "sync-backups", "20260712-163714", "agents", "also-stale.md");
+		writeFile(directBackupAgentPath, `---
+name: also-stale
+description: Another stale backup agent
+---
+
+This definition must not be executable either.
+`);
+
+		const discovered = discoverAgentsAll(cwd);
+		assert.ok(discovered.user.find((agent) => agent.name === "root-agent" && agent.filePath === rootAgentPath));
+		assert.equal(discovered.user.some((agent) => agent.name === "stale"), false);
+		assert.equal(discovered.user.some((agent) => agent.name === "also-stale"), false);
+		assert.equal(discovered.user.some((agent) => agent.filePath === nestedBackupAgentPath || agent.filePath === directBackupAgentPath), false);
+	});
+
 	it("resolves user skills, settings skills, and package skills from the configured agent dir", () => {
 		writeFile(path.join(agentDir, "skills", "env-skill", "SKILL.md"), `---
 description: Env skill
@@ -296,6 +331,20 @@ Package skill content.
 		writeFile(configPath, JSON.stringify({ artifactDir: "workspace" }));
 
 		assert.throws(() => updateConfig((config) => config), /config\.artifactDir must be "project", "session", or "temp"/);
+	});
+
+	it("loads and validates abandoned async capacity cleanup policy", () => {
+		const configPath = path.join(agentDir, "extensions", "subagent", "config.json");
+		writeFile(configPath, JSON.stringify({ capacity: { abandonedSlotReleaseAfterMs: 600_000 } }));
+		assert.equal(loadConfig().capacity?.abandonedSlotReleaseAfterMs, 600_000);
+
+		writeFile(configPath, JSON.stringify({ capacity: { abandonedSlotReleaseAfterMs: false } }));
+		assert.equal(loadConfig().capacity?.abandonedSlotReleaseAfterMs, false);
+
+		for (const invalid of [299_999, 86_400_001, 0, "600000", null]) {
+			writeFile(configPath, JSON.stringify({ capacity: { abandonedSlotReleaseAfterMs: invalid } }));
+			assert.throws(() => updateConfig((config) => config), /config\.capacity\.abandonedSlotReleaseAfterMs must be false or an integer/);
+		}
 	});
 
 	it("loads and validates Fleet keybinding config", () => {

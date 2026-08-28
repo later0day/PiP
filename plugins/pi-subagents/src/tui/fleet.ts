@@ -147,6 +147,7 @@ function trackedJobSummary(job: AsyncJobState): AsyncRunSummary {
 		...(job.currentStep !== undefined ? { currentStep: job.currentStep } : {}),
 		...(job.chainStepCount !== undefined ? { chainStepCount: job.chainStepCount } : {}),
 		...(job.parallelGroups?.length ? { parallelGroups: job.parallelGroups } : {}),
+		...(job.preflight ? { preflight: job.preflight } : {}),
 		steps: (job.steps ?? job.agents?.map((agent, index) => ({ agent, index, status: job.status === "queued" ? "pending" as const : job.status })) ?? []).map((step, index) => ({
 			...step,
 			index: step.index ?? index,
@@ -355,7 +356,12 @@ function foregroundPromptAuditCount(item: Extract<FleetItem, { kind: "foreground
 	return [...item.control.activeChildren.keys()].filter((index) => getLivePromptAudit(item.control, index)).length;
 }
 
-function authoredPromptSummary(text: string): string | undefined {
+function promptAuditString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function authoredPromptSummary(text: unknown): string | undefined {
+	if (typeof text !== "string") return undefined;
 	const summary = text.replace(/\s+/g, " ").trim();
 	return summary ? truncateToWidth(summary, PROMPT_AUDIT_SUMMARY_WIDTH, "…") : undefined;
 }
@@ -366,11 +372,11 @@ function foregroundAuthoredPromptSummary(item: Extract<FleetItem, { kind: "foreg
 	return prompt ? authoredPromptSummary(prompt.authoredTask) : undefined;
 }
 
-function promptAuditText(prompt: LivePromptAudit, view: PromptAuditView): string {
+function promptAuditText(prompt: LivePromptAudit, view: PromptAuditView): string | undefined {
 	switch (view) {
-		case "authored": return prompt.authoredTask;
-		case "runtime": return prompt.runtimeAdditions;
-		case "effective": return prompt.finalEffectivePrompt;
+		case "authored": return promptAuditString(prompt.authoredTask);
+		case "runtime": return promptAuditString(prompt.runtimeAdditions);
+		case "effective": return promptAuditString(prompt.finalEffectivePrompt);
 	}
 }
 

@@ -24,29 +24,96 @@ import { extractWithBrightDataUnlocker, isBrightDataUnlockerAvailable } from "./
 import { isVideoFile, extractVideo, extractVideoFrame, getLocalVideoDuration } from "./video-extract.ts";
 import { appendDeclaredWebLinks, discoverDeclaredWebLinks, type DeclaredWebLink } from "./declared-web-links.ts";
 import { fetchRemoteUrl, loadFetchContentDomainPolicy, loadSsrfConfig, validateRemoteUrl, type DomainPolicy, type Lookup, type SsrfConfig } from "./ssrf-protection.ts";
-import { formatSeconds, getWebSearchConfigPath } from "./utils.ts";
+import { formatSeconds, getWebSearchConfigPath, type ProxiedRequestInit } from "./utils.ts";
 import { isImageEnabled } from "./feature-config.ts";
 import { assertAuthFetchUrl, authFetchRedirectGuard, type AuthFetchProfile } from "./auth-fetch.ts";
 import { getBrowserCookiesForHosts, getLastBrowserCookieDiagnostic } from "./chrome-cookies.ts";
 import { sanitizeInlineDataUris } from "./data-uri-sanitize.ts";
 
 const DEFAULT_TIMEOUT_MS = 30000;
+const MAX_CONFIGURED_TIMEOUT_MS = 2_147_483_647;
 const CONCURRENT_LIMIT = 3;
+const WEB_SEARCH_CONFIG_PATH = getWebSearchConfigPath();
+
+function loadFetchTimeoutMs(): number {
+	if (!existsSync(WEB_SEARCH_CONFIG_PATH)) return DEFAULT_TIMEOUT_MS;
+
+	let raw: unknown;
+	try {
+		raw = JSON.parse(readFileSync(WEB_SEARCH_CONFIG_PATH, "utf-8"));
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(`Failed to parse ${WEB_SEARCH_CONFIG_PATH}: ${message}`);
+	}
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+		throw new Error(`Invalid config in ${WEB_SEARCH_CONFIG_PATH}: expected a JSON object`);
+	}
+
+	const fetchConfig = (raw as Record<string, unknown>).fetch;
+	if (fetchConfig === undefined) return DEFAULT_TIMEOUT_MS;
+	if (!fetchConfig || typeof fetchConfig !== "object" || Array.isArray(fetchConfig)) {
+		throw new Error(`fetch in ${WEB_SEARCH_CONFIG_PATH} must be an object`);
+	}
+
+	const value = (fetchConfig as Record<string, unknown>).timeout;
+	if (value === undefined) return DEFAULT_TIMEOUT_MS;
+	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+		throw new Error(`Invalid fetch.timeout in ${WEB_SEARCH_CONFIG_PATH}: expected a positive finite number of seconds, got ${JSON.stringify(value)}`);
+	}
+	const timeoutMs = Math.ceil(value * 1000);
+	if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_CONFIGURED_TIMEOUT_MS) {
+		throw new Error(`Invalid fetch.timeout in ${WEB_SEARCH_CONFIG_PATH}: converted timeout must be a finite safe integer from 1 through ${MAX_CONFIGURED_TIMEOUT_MS} milliseconds`);
+	}
+	return Math.max(1, timeoutMs);
+}
 
 const NON_RECOVERABLE_ERRORS = ["Unsupported content type", "Response too large", "PDF extraction is disabled", "Image fetching is disabled"];
 const MIN_USEFUL_CONTENT = 500;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
-const WEB_SEARCH_CONFIG_PATH = getWebSearchConfigPath();
 const FETCH_PROVIDERS = ["http", "firecrawl", "jina", "tinyfish", "search1api", "querit", "kagi", "ollama", "parallel", "parallel-mcp", "brightdata", "gemini"] as const;
 type FetchProvider = typeof FETCH_PROVIDERS[number];
 type FetchRouting = { providers: FetchProvider[]; allowRemoteHostedProviders: boolean };
 const DEFAULT_FETCH_PROVIDER_ORDER: FetchProvider[] = ["http", "firecrawl", "jina", "tinyfish", "search1api", "querit", "kagi", "ollama", "parallel", "brightdata", "gemini"];
 const REMOTE_HOSTED_FETCH_PROVIDERS = new Set<FetchProvider>(["jina", "tinyfish", "search1api", "querit", "kagi", "ollama", "parallel", "parallel-mcp", "brightdata", "gemini"]);
 
+function isDefuddleConsoleError(args: Parameters<typeof console.error>): boolean {
+	const prefix = args[0];
+	return prefix === "Defuddle" || (typeof prefix === "string" && /^Defuddle(?:\s|:)/.test(prefix));
+}
+
 async function extractWithDefuddle(text: string, url: string): Promise<{ title: string; content: string } | null> {
 	const { Defuddle } = await import("defuddle/node");
 	const { document } = parseHTML(text);
-	const result = await Defuddle(document as unknown as Document, url, { markdown: true, useAsync: false });
+	Object.defineProperty(document, "location", {
+		value: new URL(url),
+		configurable: true,
+	});
+	let processingError: unknown;
+	const originalConsoleError = console.error;
+	console.error = (...args) => {
+		if (isDefuddleConsoleError(args)) {
+			if (args[0] === "Defuddle" && args[1] === "Error processing document:") {
+				processingError = args[2];
+			}
+			return;
+		}
+		originalConsoleError(...args);
+	};
+
+	let resultPromise: ReturnType<typeof Defuddle>;
+	try {
+		// With useAsync:false, Defuddle parses synchronously before returning its promise.
+		// Keep the console interception limited to that call so unrelated Pi output is
+		// never routed through this fallback's handler.
+		resultPromise = Defuddle(document as unknown as Document, url, { markdown: true, useAsync: false });
+	} finally {
+		console.error = originalConsoleError;
+	}
+
+	const result = await resultPromise;
+	if (processingError !== undefined) {
+		throw new Error(`Defuddle failed to process document: ${errorMessage(processingError)}`);
+	}
 	return typeof result.content === "string" ? { title: result.title, content: result.content } : null;
 }
 
@@ -262,15 +329,22 @@ export interface ExtractOptions {
 	answerModel?: string;
 	authFetchProfile?: AuthFetchProfile;
 	toolNames?: RegisteredToolNames;
+	/** Optional http(s) proxy URL; routed through the curl-backed transport. */
+	proxy?: string;
 	/** Custom DNS resolver used for SSRF validation. Primarily a test seam. */
 	lookup?: Lookup;
 }
 
+/** Resolve the direct HTTP/Jina fetch budget, with a per-call override taking precedence. */
+export function resolveFetchTimeoutMs(options?: Pick<ExtractOptions, "timeoutMs">): number {
+	return options?.timeoutMs ?? loadFetchTimeoutMs();
+}
+
 const JINA_READER_BASE = "https://r.jina.ai/";
-const JINA_TIMEOUT_MS = 30000;
 
 async function extractWithJinaReader(
 	url: string,
+	timeoutMs: number,
 	signal?: AbortSignal,
 	lookup?: Lookup,
 ): Promise<ExtractedContent | null> {
@@ -293,7 +367,7 @@ async function extractWithJinaReader(
 				"X-No-Cache": "true",
 			},
 			signal: AbortSignal.any([
-				AbortSignal.timeout(JINA_TIMEOUT_MS),
+				AbortSignal.timeout(timeoutMs),
 				...(signal ? [signal] : []),
 			]),
 		});
@@ -448,16 +522,12 @@ export async function extractContent(
 		}
 	}
 
-	if (options?.authFetchProfile) {
+	if (options?.authFetchProfile || options?.mode === "raw") {
 		try {
-			return await extractViaHttp(url, signal, options);
+			return await extractViaHttp(url, resolveFetchTimeoutMs(options), signal, options);
 		} catch (err) {
 			return { url, title: "", content: "", error: errorMessage(err) };
 		}
-	}
-
-	if (options?.mode === "raw") {
-		return extractViaHttp(url, signal, options);
 	}
 
 	if (options?.frames || options?.timestamp) {
@@ -671,6 +741,13 @@ export async function extractContent(
 
 	if (signal?.aborted) return abortedResult(url);
 
+	let fetchTimeoutMs: number;
+	try {
+		fetchTimeoutMs = resolveFetchTimeoutMs(options);
+	} catch (err) {
+		return { url, title: "", content: "", error: errorMessage(err) };
+	}
+
 	let fetchRouting: FetchRouting;
 	try {
 		fetchRouting = loadFetchRouting();
@@ -699,7 +776,7 @@ export async function extractContent(
 		? { ...httpResult, error: message }
 		: { url, title: "", content: "", error: message };
 	const runHttpProvider = async (): Promise<ExtractedContent | null> => {
-		const { declaredLinks: discoveredLinks = [], ...result } = await extractViaHttp(url, signal, options);
+		const { declaredLinks: discoveredLinks = [], ...result } = await extractViaHttp(url, fetchTimeoutMs, signal, options);
 		httpResult = result;
 		declaredLinks = discoveredLinks;
 		if (signal?.aborted) return abortedResult(url);
@@ -754,7 +831,7 @@ export async function extractContent(
 		}
 
 		if (provider === "jina") {
-			const jinaResult = await extractWithJinaReader(url, signal, options?.lookup);
+			const jinaResult = await extractWithJinaReader(url, fetchTimeoutMs, signal, options?.lookup);
 			if (jinaResult) return withDeclaredLinks(jinaResult);
 			continue;
 		}
@@ -940,13 +1017,11 @@ export async function extractContent(
 }
 
 function isLikelyJSRendered(html: string): boolean {
-	// Extract body content
 	const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
 	if (!bodyMatch) return false;
 
 	const bodyHtml = bodyMatch[1];
 
-	// Strip tags to get text content
 	const textContent = bodyHtml
 		.replace(/<script[\s\S]*?<\/script>/gi, "")
 		.replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -954,10 +1029,8 @@ function isLikelyJSRendered(html: string): boolean {
 		.replace(/\s+/g, " ")
 		.trim();
 
-	// Count scripts
 	const scriptCount = (html.match(/<script/gi) || []).length;
 
-	// Heuristic: little text content but many scripts suggests JS rendering
 	return textContent.length < 500 && scriptCount > 3;
 }
 
@@ -1038,10 +1111,10 @@ function responseSizeLimitError(maxBytes: number): Error {
 
 async function extractViaHttp(
 	url: string,
+	timeoutMs: number,
 	signal?: AbortSignal,
 	options?: ExtractOptions,
 ): Promise<HttpExtractedContent> {
-	const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const activityId = activityMonitor.logStart({ type: "fetch", url });
 
 	const controller = new AbortController();
@@ -1054,8 +1127,10 @@ async function extractViaHttp(
 		const ssrf = loadSsrfConfig();
 		const domainPolicy = loadFetchContentDomainPolicy();
 		const authProfile = options?.authFetchProfile;
-		const requestInit = {
+		const trustEnvProxy = options?.proxy === undefined && ssrf.trustEnvProxy;
+		const requestInit: ProxiedRequestInit = {
 			signal: controller.signal,
+			__proxy: options?.proxy,
 			headers: {
 				"User-Agent": "OpenAI File Downloader, XaiImageApiFetch/1.0",
 				"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -1069,13 +1144,13 @@ async function extractViaHttp(
 			},
 		};
 		const response = authProfile
-			? await fetchAuthenticatedRemoteUrl(url, requestInit, { ssrf, domainPolicy, ...(options?.lookup ? { lookup: options.lookup } : {}) }, authProfile)
+			? await fetchAuthenticatedRemoteUrl(url, requestInit, { ssrf: { ...ssrf, trustEnvProxy }, domainPolicy, ...(options?.lookup ? { lookup: options.lookup } : {}) }, authProfile)
 			: await fetchRemoteUrl(
 				url,
 				requestInit,
 				{
 					allowRanges: ssrf.allowRanges,
-					trustEnvProxy: ssrf.trustEnvProxy,
+					trustEnvProxy,
 					domainPolicy,
 					...(options?.lookup ? { lookup: options.lookup } : {}),
 				},

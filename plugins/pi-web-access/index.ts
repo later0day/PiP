@@ -4,15 +4,15 @@ import { Type } from "typebox";
 import { StringEnum, type ImageContent, type TextContent } from "@earendil-works/pi-ai/compat";
 import type { ExtractedContent, ExtractOptions } from "./extract.ts";
 import { normalizeFetchContentParams } from "./fetch-params.ts";
-import { normalizeGetSearchContentParams } from "./get-search-content-params.ts";
 import { resolveAuthFetchProfile, type AuthFetchProfile } from "./auth-fetch.ts";
 import { findContent, type FindMode } from "./content-find.ts";
 import { answerFromPage } from "./page-query.ts";
 import { rewriteSearchQuery } from "./query-rewrite.ts";
 import { clearCloneCache } from "./github-extract.ts";
-import { getConfiguredSearchRouting, normalizeSearchProviderSelection, RESOLVED_SEARCH_PROVIDERS, SEARCH_PROVIDERS, search, type AttributedSearchResponse, type SearchProvider, type SearchProviderSelection, type ResolvedSearchProvider } from "./gemini-search.ts";
+import { ALL_SEARCH_PROVIDERS, getConfiguredSearchRouting, normalizeSearchProviderSelection, RESOLVED_SEARCH_PROVIDERS, SEARCH_PROVIDERS, search, type AttributedSearchResponse, type ProviderAvailability, type SearchProvider, type SearchProviderSelection, type ResolvedSearchProvider } from "./gemini-search.ts";
+export type { ProviderAvailability } from "./gemini-search.ts";
 import type { SearchResult } from "./perplexity.ts";
-import { formatSeconds, getWebSearchConfigDir, getWebSearchConfigPath, resolveCuratorNetworkConfig } from "./utils.ts";
+import { formatSeconds, getWebSearchConfigDir, getWebSearchConfigPath, installGlobalProxyFetch, resolveCuratorNetworkConfig, runWithProxy } from "./utils.ts";
 import {
 	clearResults,
 	deleteResult,
@@ -64,10 +64,12 @@ import { isSearXNGAvailable } from "./searxng.ts";
 import { isDuckDuckGoAvailable } from "./duckduckgo.ts";
 import { isAnySearchAvailable } from "./anysearch.ts";
 import { isXaiSearchAvailable } from "./xai-search.ts";
+import { isKimiSearchAvailable } from "./kimi-search.ts";
 import { isBrightDataAvailable } from "./brightdata.ts";
 import { isSerpBaseAvailable } from "./serpbase.ts";
 import { isSerperAvailable } from "./serper.ts";
 import { isValyuAvailable } from "./valyu.ts";
+import { isXcrawlAvailable } from "./xcrawl.ts";
 import { buildSearchErrorPlan, type SearchErrorDetails, type SearchErrorPlan } from "./render-search-error.ts";
 import { findModelWithProviderRouting, loadEnabledModelPatterns, modelMatchesEnabledPatterns, splitThinkingSuffix } from "./summary-model-scope.ts";
 import {
@@ -91,6 +93,18 @@ async function fetchAllContent(
 ): Promise<ExtractedContent[]> {
 	const extractModule = await (extractModulePromise ??= import("./extract.ts"));
 	return extractModule.fetchAllContent(urls, signal, options);
+}
+
+function withRegisteredFetchOptions(
+	options: ExtractOptions | undefined,
+	toolNames: ExtractOptions["toolNames"],
+	proxy?: string,
+): ExtractOptions {
+	return {
+		...(options ?? {}),
+		toolNames,
+		...(proxy !== undefined ? { proxy } : {}),
+	};
 }
 
 function isAbortError(err: unknown): boolean {
@@ -117,6 +131,7 @@ function renderSearchErrorPlan(plan: SearchErrorPlan, expanded: boolean, theme: 
 
 interface WebSearchConfig {
 	anysearchApiKey?: unknown;
+	xcrawlApiKey?: unknown;
 	brightdataApiKey?: unknown;
 	brightdataSerpZone?: unknown;
 	kagiApiKey?: unknown;
@@ -151,36 +166,6 @@ interface WebSearchConfig {
 		/** Skip local hostname DNS preflight when an HTTP(S)_PROXY env var applies. */
 		trustEnvProxy?: boolean;
 	};
-}
-
-export interface ProviderAvailability {
-	all: boolean;
-	openai: boolean;
-	brave: boolean;
-	parallel: boolean;
-	"parallel-mcp": boolean;
-	tinyfish: boolean;
-	search1api: boolean;
-	searchinfinity: boolean;
-	querit: boolean;
-	tavily: boolean;
-	firecrawl: boolean;
-	jina: boolean;
-	serpdive: boolean;
-	searxng: boolean;
-	duckduckgo: boolean;
-	perplexity: boolean;
-	exa: boolean;
-	gemini: boolean;
-	kagi: boolean;
-	bocha: boolean;
-	ollama: boolean;
-	anysearch: boolean;
-	xai: boolean;
-	brightdata: boolean;
-	serpbase: boolean;
-	serper: boolean;
-	valyu: boolean;
 }
 
 type WebSearchWorkflow = "none" | "summary-review" | "auto-summary";
@@ -361,6 +346,33 @@ function normalizeQueryList(queryList: unknown[]): string[] {
 	return normalized;
 }
 
+// Some local models serialize a multi-query list into the single-string `query`
+// field as a JSON array (query: "[\"a\", \"b\"]") instead of using the
+// `queries` parameter. Forwarding that raw string verbatim makes every backend
+// search for the literal array text and return zero results, with no signal to
+// the model that its argument shape was wrong. Expand a string that parses as a
+// JSON array of strings so each element is searched independently.
+function expandQueryString(query: unknown): string[] {
+	if (typeof query !== "string") return [];
+	const trimmed = query.trim();
+	if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+		try {
+			const parsed: unknown = JSON.parse(trimmed);
+			// Only expand an unambiguously string-only array. Mixed or non-string
+			// arrays are kept as the literal query so we never silently drop
+			// members or collapse them into an empty search.
+			if (Array.isArray(parsed) && parsed.every((entry): entry is string => typeof entry === "string")) {
+				return parsed
+					.map((entry) => entry.trim())
+					.filter((entry) => entry.length > 0);
+			}
+		} catch {
+			// Not JSON — treat as a literal query string.
+		}
+	}
+	return [query];
+}
+
 function getCuratorTimeoutSeconds(): number {
 	const source = loadConfig();
 	const explicit = normalizeCuratorTimeoutSeconds(source.curatorTimeoutSeconds);
@@ -407,16 +419,18 @@ async function getProviderAvailability(ctx: ExtensionContext): Promise<ProviderA
 		perplexity: isPerplexityAvailable(),
 		exa: isExaAvailable(),
 		gemini: geminiApiAvail || !!geminiWebAvail,
+		kimi: await isKimiSearchAvailable(ctx),
 		anysearch: isAnySearchAvailable(),
+		xcrawl: isXcrawlAvailable(),
 		xai: await isXaiSearchAvailable(ctx),
 		brightdata: isBrightDataAvailable(),
 		serpbase: isSerpBaseAvailable(),
 		serper: isSerperAvailable(),
 		valyu: isValyuAvailable(),
 	};
+	const allSearchProviders = new Set<ResolvedSearchProvider>(ALL_SEARCH_PROVIDERS);
 	return {
-		// Parallel MCP, DuckDuckGo, AnySearch, xAI, Bright Data, SerpBase, Serper, and Valyu are explicit-only, so they never make `all` eligible.
-		all: Object.entries(providers).some(([provider, available]) => provider !== "parallel-mcp" && provider !== "duckduckgo" && provider !== "anysearch" && provider !== "xai" && provider !== "brightdata" && provider !== "serpbase" && provider !== "serper" && provider !== "valyu" && provider !== "gemini" && available) || geminiApiAvail,
+		all: Object.entries(providers).some(([provider, available]) => provider !== "gemini" && allSearchProviders.has(provider as ResolvedSearchProvider) && available) || geminiApiAvail,
 		...providers,
 	};
 }
@@ -595,6 +609,7 @@ interface PendingCurate {
 	summaryModels: Array<{ value: string; label: string }>;
 	defaultSummaryModel: string | null;
 	timeoutSeconds: number;
+	proxy?: string;
 	curatorUrl?: string;
 	onUpdate: ((update: { content: Array<{ type: string; text: string }>; details?: Record<string, unknown> }) => void) | undefined;
 	signal: AbortSignal | undefined;
@@ -655,6 +670,40 @@ function normalizeFindQueries(value: string | string[]): string[] {
 	const queries = (Array.isArray(value) ? value : [value]).map(query => query.trim()).filter(Boolean);
 	if (queries.length === 0) throw new Error("findText must contain at least one non-empty string");
 	return queries;
+}
+
+interface GetSearchContentParams {
+	responseId: string;
+	query?: string;
+	queryIndex?: number;
+	url?: string;
+	urlIndex?: number;
+	offset?: number;
+	limit?: number;
+	findText?: string | string[];
+	findMode?: FindMode;
+}
+
+type RawGetSearchContentParams = Omit<GetSearchContentParams, "findMode"> & { findMode?: unknown };
+
+function normalizeFindMode(value: unknown): FindMode | undefined {
+	if (value === undefined) return undefined;
+	if (value === "exact" || value === "case-insensitive" || value === "fuzzy") return value;
+	throw new Error('findMode must be "exact", "case-insensitive", or "fuzzy"');
+}
+
+function normalizeGetSearchContentParams(params: RawGetSearchContentParams): GetSearchContentParams {
+	const normalized: GetSearchContentParams = { ...params, findMode: normalizeFindMode(params.findMode) };
+
+	if (normalized.query?.trim() === "") delete normalized.query;
+	if (normalized.url?.trim() === "") delete normalized.url;
+
+	if (normalized.findText !== undefined) {
+		delete normalized.offset;
+		delete normalized.limit;
+	}
+
+	return normalized;
 }
 
 function formatInputValue(value: unknown): string {
@@ -989,6 +1038,7 @@ function handleSessionChange(ctx: ExtensionContext): void {
 
 export default function (pi: ExtensionAPI) {
 	const initConfig = loadConfigForExtensionInit();
+	installGlobalProxyFetch();
 	const toolNames = resolveToolNames(initConfig);
 	const webSearchEnabled = isToolEnabled(initConfig, "webSearch");
 	const sourceCheckEnabled = isToolEnabled(initConfig, "sourceCheck");
@@ -1014,12 +1064,12 @@ export default function (pi: ExtensionAPI) {
 	const curateKey = initConfig.shortcuts?.curate || DEFAULT_SHORTCUTS.curate;
 	const activityKey = initConfig.shortcuts?.activity || DEFAULT_SHORTCUTS.activity;
 
-	function startBackgroundFetch(urls: string[]): string | null {
+	function startBackgroundFetch(urls: string[], proxy?: string): string | null {
 		if (urls.length === 0) return null;
 		const fetchId = generateId();
 		const controller = new AbortController();
 		pendingFetches.set(fetchId, controller);
-		fetchAllContent(urls, controller.signal, { toolNames: registeredToolNames })
+		runWithProxy(proxy, () => fetchAllContent(urls, controller.signal, withRegisteredFetchOptions(undefined, registeredToolNames, proxy)))
 			.then((fetched) => {
 				if (!sessionActive || !pendingFetches.has(fetchId)) return;
 				const data = {
@@ -1084,6 +1134,7 @@ export default function (pi: ExtensionAPI) {
 		workflow?: SummaryWorkflow;
 		approvedSummary?: string;
 		summaryMeta?: SummaryMeta;
+		proxy?: string;
 	}
 
 	function normalizeSummaryMeta(meta: SummaryMeta | undefined, summaryText: string): SummaryMeta {
@@ -1336,7 +1387,7 @@ export default function (pi: ExtensionAPI) {
 				output += `---\nFull content for ${opts.inlineContent.length} sources available [${fetchId}].`;
 			}
 		} else if (opts.includeContent) {
-			fetchId = startBackgroundFetch(opts.urls);
+			fetchId = startBackgroundFetch(opts.urls, opts.proxy);
 			if (fetchId && !hasApprovedSummary) {
 				output += `---\nContent fetching in background [${fetchId}]. Will notify when ready.`;
 			}
@@ -1451,25 +1502,27 @@ export default function (pi: ExtensionAPI) {
 				},
 				{
 					async onSummarize(selectedQueryIndices, summarizeSignal, model, feedback) {
-						if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
-						pc.onUpdate?.({
-							content: [{ type: "text", text: "Generating summary draft..." }],
-							details: { phase: "generating-summary", progress: 0.9, curatorUrl: pc.curatorUrl, timeoutSeconds: pc.timeoutSeconds, shortcut: curateKey },
+						return runWithProxy(pc.proxy, async () => {
+							if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
+							pc.onUpdate?.({
+								content: [{ type: "text", text: "Generating summary draft..." }],
+								details: { phase: "generating-summary", progress: 0.9, curatorUrl: pc.curatorUrl, timeoutSeconds: pc.timeoutSeconds, shortcut: curateKey },
+							});
+							const draft = await generateSummaryForSelectedIndices(
+								selectedQueryIndices,
+								pc.searchResults,
+								pc.summaryContext,
+								summarizeSignal,
+								model,
+								feedback,
+							);
+							if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
+							pc.onUpdate?.({
+								content: [{ type: "text", text: "Summary draft ready — waiting for approval..." }],
+								details: { phase: "waiting-for-approval", progress: 1, curatorUrl: pc.curatorUrl, timeoutSeconds: pc.timeoutSeconds, shortcut: curateKey },
+							});
+							return draft;
 						});
-						const draft = await generateSummaryForSelectedIndices(
-							selectedQueryIndices,
-							pc.searchResults,
-							pc.summaryContext,
-							summarizeSignal,
-							model,
-							feedback,
-						);
-						if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
-						pc.onUpdate?.({
-							content: [{ type: "text", text: "Summary draft ready — waiting for approval..." }],
-							details: { phase: "waiting-for-approval", progress: 1, curatorUrl: pc.curatorUrl, timeoutSeconds: pc.timeoutSeconds, shortcut: curateKey },
-						});
-						return draft;
 					},
 					onSubmit(payload) {
 						if (pendingCurates.get(callId) !== pc) return;
@@ -1486,6 +1539,7 @@ export default function (pi: ExtensionAPI) {
 							inlineContent: filteredInline.length > 0 ? filteredInline : undefined,
 							curated: true,
 							curatedFrom: pc.searchResults.size,
+							proxy: pc.proxy,
 						};
 						if (!payload.rawResults) {
 							const resolvedSummary = resolveSummaryForSubmit(payload, pc.searchResults);
@@ -1514,6 +1568,7 @@ export default function (pi: ExtensionAPI) {
 								workflow: pc.workflow,
 								approvedSummary: resolvedSummary.approvedSummary,
 								summaryMeta: resolvedSummary.summaryMeta,
+								proxy: pc.proxy,
 							}));
 						} else {
 							const conn = activeCurators.get(callId)?.getConnectionState();
@@ -1542,20 +1597,22 @@ export default function (pi: ExtensionAPI) {
 						}
 					},
 					async onAddSearch(query, provider) {
-						if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
-						const requestedProvider = resolveCuratorSearchProvider(provider, pc.searchProvider);
-						const response = await search(query, {
-							provider: requestedProvider,
-							numResults: pc.numResults,
-							recencyFilter: pc.recencyFilter,
-							domainFilter: pc.domainFilter,
-							includeContent: pc.includeContent,
-							signal: addSearchSignal,
-							extensionContext: ctx,
+						return runWithProxy(pc.proxy, async () => {
+							if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
+							const requestedProvider = resolveCuratorSearchProvider(provider, pc.searchProvider);
+							const response = await search(query, {
+								provider: requestedProvider,
+								numResults: pc.numResults,
+								recencyFilter: pc.recencyFilter,
+								domainFilter: pc.domainFilter,
+								includeContent: pc.includeContent,
+								signal: addSearchSignal,
+								extensionContext: ctx,
+							});
+							if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
+							if (response.inlineContent) pc.allInlineContent.push(...response.inlineContent);
+							return toCuratorSearchEntries(response);
 						});
-						if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
-						if (response.inlineContent) pc.allInlineContent.push(...response.inlineContent);
-						return toCuratorSearchEntries(response);
 					},
 					onAddSearchResults(entries) {
 						if (pendingCurates.get(callId) !== pc) return;
@@ -1564,8 +1621,10 @@ export default function (pi: ExtensionAPI) {
 						}
 					},
 					async onRewriteQuery(query, rewriteSignal) {
-						if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
-						return rewriteSearchQuery(query, pc.summaryContext, rewriteSignal);
+						return runWithProxy(pc.proxy, async () => {
+							if (pendingCurates.get(callId) !== pc) throw new Error("Curator session is no longer active.");
+							return rewriteSearchQuery(query, pc.summaryContext, rewriteSignal);
+						});
 					},
 				},
 			);
@@ -1691,7 +1750,7 @@ export default function (pi: ExtensionAPI) {
 		name: toolNames.webSearch,
 		label: "Web Search",
 		description:
-			`Search the web using OpenAI, Brave, Parallel, Parallel MCP, TinyFish, Search1API, Searchinfinity, Querit, Tavily, Firecrawl, Jina, SERPdive, Kagi, Bocha, Ollama, SearXNG, DuckDuckGo, Exa, Perplexity, Gemini, AnySearch, Valyu, xAI, Bright Data, SerpBase, or Serper. Pass a provider array to search only those providers simultaneously, or use provider "all" to search every eligible provider except Parallel MCP, DuckDuckGo, AnySearch, Valyu, xAI, Bright Data, SerpBase, and Serper. Returns an AI-synthesized answer with source citations. OpenAI search uses a Codex subscription or OpenAI API key; xAI search uses a SuperGrok/X Premium subscription or xAI API key. Parallel MCP, DuckDuckGo, AnySearch, Valyu, xAI, Bright Data, SerpBase, and Serper are available only when explicitly selected. For comprehensive research, prefer queries (plural) with 2-4 varied angles over a single query — each query gets its own synthesized answer, so varying phrasing and scope gives much broader coverage. When includeContent is true, full page content is fetched in the background. Searches auto-open the interactive browser curator and stream results live; set workflow to "none" to skip curation or "auto-summary" for a model-generated summary without the browser curator. The configured provider is used when provider is omitted or set to auto; omit provider unless explicitly overriding it. Without a configured provider, SearXNG is preferred first for local/private search. When the active Pi model is openai-codex, Codex-backed OpenAI search is preferred next. Otherwise Exa is preferred before OpenAI, then Brave, Parallel, TinyFish, Search1API, Searchinfinity, Querit, Tavily, Firecrawl, Jina, SERPdive, Kagi, Bocha, Ollama, Perplexity, Gemini API, or Gemini Web.`,
+			`Search the web using OpenAI, Brave, Parallel, Parallel MCP, TinyFish, Search1API, Searchinfinity, Querit, Tavily, Firecrawl, Jina, SERPdive, Kagi, Bocha, Ollama, SearXNG, DuckDuckGo, Exa, Perplexity, Gemini, Kimi, AnySearch, XCrawl, Valyu, xAI, Bright Data, SerpBase, or Serper. Pass a provider array to search only those providers simultaneously, or use provider "all" to search every eligible provider except Parallel MCP, DuckDuckGo, Kimi, AnySearch, XCrawl, Valyu, xAI, Bright Data, SerpBase, and Serper. Returns an AI-synthesized answer with source citations. OpenAI search uses a Codex subscription or OpenAI API key; Kimi search uses a Kimi Code Plan authenticated through /login kimi-coding; xAI search uses a SuperGrok/X Premium subscription or xAI API key. Parallel MCP, DuckDuckGo, Kimi, AnySearch, XCrawl, Valyu, xAI, Bright Data, SerpBase, and Serper are available only when explicitly selected. For comprehensive research, prefer queries (plural) with 2-4 varied angles over a single query — each query gets its own synthesized answer, so varying phrasing and scope gives much broader coverage. When includeContent is true, full page content is fetched in the background. Searches auto-open the interactive browser curator and stream results live; set workflow to "none" to skip curation or "auto-summary" for a model-generated summary without the browser curator. The configured provider is used when provider is omitted or set to auto; omit provider unless explicitly overriding it. Without a configured provider, SearXNG is preferred first for local/private search. When the active Pi model is openai-codex, Codex-backed OpenAI search is preferred next. Otherwise Exa is preferred before OpenAI, then Brave, Parallel, TinyFish, Search1API, Searchinfinity, Querit, Tavily, Firecrawl, Jina, SERPdive, Kagi, Bocha, Ollama, Perplexity, Gemini API, or Gemini Web.`,
 		promptSnippet:
 			"Use for web research questions. Prefer {queries:[...]} with 2-4 varied angles over a single query for broader coverage. Omit provider unless explicitly overriding the configured default.",
 		parameters: Type.Object({
@@ -1703,39 +1762,43 @@ export default function (pi: ExtensionAPI) {
 				StringEnum(["day", "week", "month", "year"], { description: "Filter by recency" }),
 			),
 			domainFilter: Type.Optional(Type.Array(Type.String(), { description: "Limit to domains (prefix with - to exclude)" })),
-			provider: Type.Optional(searchProviderSchema("Search provider or non-empty list of providers to search simultaneously; use all to search every eligible provider except Parallel MCP, DuckDuckGo, AnySearch, xAI, Bright Data, SerpBase, Serper, and Valyu, omit this field to use the configured provider, or use auto when none is configured")),
+			provider: Type.Optional(searchProviderSchema("Search provider or non-empty list of providers to search simultaneously; use all to search every eligible provider except Parallel MCP, DuckDuckGo, Kimi, AnySearch, XCrawl, Valyu, xAI, Bright Data, SerpBase, and Serper, omit this field to use the configured provider, or use auto when none is configured")),
 			workflow: Type.Optional(
 				StringEnum(["none", "summary-review", "auto-summary"], {
 					description: "Search workflow mode: none = no curator, summary-review = open curator with auto summary draft (default), auto-summary = generate summary without opening curator",
 				}),
 			),
+			proxy: Type.Optional(Type.String({
+				description: "http(s) proxy URL (e.g. http://host:port) used for every outbound request in this call (search APIs and content fetches). Node fetch ignores HTTP(S)_PROXY env vars, so set this (or `proxy` in web-search.json) when direct access is blocked; empty string forces direct access.",
+			})),
 		}),
 
 		async execute(callId, params, signal, onUpdate, ctx) {
-			const rawQueryList: unknown[] = Array.isArray(params.queries)
-				? params.queries
-				: (params.query !== undefined ? [params.query] : []);
-			const queryList = normalizeQueryList(rawQueryList);
-			const configWorkflow = loadConfigForExtensionInit().workflow;
-			const workflow = resolveWorkflow(params.workflow ?? configWorkflow, ctx?.hasUI !== false);
-			const shouldCurate = workflow === "summary-review";
-			const recencyFilter = normalizeRecencyFilter(params.recencyFilter);
+			return runWithProxy(typeof params.proxy === "string" ? params.proxy : undefined, async () => {
+				const rawQueryList: unknown[] = Array.isArray(params.queries)
+					? params.queries
+					: (params.query !== undefined ? expandQueryString(params.query) : []);
+				const queryList = normalizeQueryList(rawQueryList);
+				const configWorkflow = loadConfigForExtensionInit().workflow;
+				const workflow = resolveWorkflow(params.workflow ?? configWorkflow, ctx?.hasUI !== false);
+				const shouldCurate = workflow === "summary-review";
+				const recencyFilter = normalizeRecencyFilter(params.recencyFilter);
 
-			if (queryList.length === 0) {
-				return {
-					content: [{ type: "text", text: "Error: No query provided. Use 'query' or 'queries' parameter." }],
-					details: { error: "No query provided" },
-				};
-			}
+				if (queryList.length === 0) {
+					return {
+						content: [{ type: "text", text: "Error: No query provided. Use 'query' or 'queries' parameter." }],
+						details: { error: "No query provided" },
+					};
+				}
 
-			if (shouldCurate && !ctx) {
-				return {
-					content: [{ type: "text", text: "Error: Curation requires an active extension context." }],
-					details: { error: "Missing extension context" },
-				};
-			}
+				if (shouldCurate && !ctx) {
+					return {
+						content: [{ type: "text", text: "Error: Curation requires an active extension context." }],
+						details: { error: "Missing extension context" },
+					};
+				}
 
-			if (shouldCurate) {
+				if (shouldCurate) {
 				closeCurator(callId);
 
 				let resolvePromise: (value: AgentToolResult<Record<string, unknown>>) => void = () => {};
@@ -1790,6 +1853,7 @@ export default function (pi: ExtensionAPI) {
 					summaryModels: summaryModelChoices.summaryModels,
 					defaultSummaryModel: summaryModelChoices.defaultSummaryModel,
 					timeoutSeconds: curatorTimeoutSeconds,
+					proxy: typeof params.proxy === "string" ? params.proxy : undefined,
 					onUpdate: onUpdate as PendingCurate["onUpdate"],
 					signal,
 					abortSearches: () => {
@@ -2000,6 +2064,8 @@ export default function (pi: ExtensionAPI) {
 				workflow: workflow === "auto-summary" ? "auto-summary" : undefined,
 				approvedSummary,
 				summaryMeta,
+				proxy: typeof params.proxy === "string" ? params.proxy : undefined,
+			});
 			});
 		},
 
@@ -2007,7 +2073,7 @@ export default function (pi: ExtensionAPI) {
 			const input = args as { query?: unknown; queries?: unknown };
 			const rawQueryList: unknown[] = Array.isArray(input.queries)
 				? input.queries
-				: (input.query !== undefined ? [input.query] : []);
+				: (input.query !== undefined ? expandQueryString(input.query) : []);
 			const queryList = normalizeQueryList(rawQueryList);
 			if (queryList.length === 0) {
 				return new Text(theme.fg("toolTitle", theme.bold("search ")) + theme.fg("error", "(no query)"), 0, 0);
@@ -2271,85 +2337,90 @@ export default function (pi: ExtensionAPI) {
 			fetchContent: Type.Optional(Type.Boolean({ description: "Fetch up to 5 result pages for exact passage extraction." })),
 			recencyFilter: Type.Optional(StringEnum(["day", "week", "month", "year"], { description: "Filter by recency." })),
 			domainFilter: Type.Optional(Type.Array(Type.String(), { description: "Limit to domains; prefix with - to exclude." })),
-			provider: Type.Optional(searchProviderSchema("Search provider or non-empty list of providers to search simultaneously; all searches every eligible provider except DuckDuckGo, AnySearch, xAI, Bright Data, SerpBase, Serper, and Valyu")),
+			provider: Type.Optional(searchProviderSchema("Search provider or non-empty list of providers to search simultaneously; all searches every eligible provider except Parallel MCP, DuckDuckGo, Kimi, AnySearch, XCrawl, Valyu, xAI, Bright Data, SerpBase, and Serper")),
+			proxy: Type.Optional(Type.String({
+				description: "http(s) proxy URL (e.g. http://host:port) used for every outbound request in this call (search APIs and result-page fetches). Empty string forces direct access.",
+			})),
 		}),
 		async execute(_callId, params, signal, _onUpdate, ctx) {
-			const claim = typeof params.claim === "string" ? params.claim.trim() : "";
-			if (!claim) {
-				return { content: [{ type: "text", text: "Error: 'claim' is required." }], details: { error: "Missing claim" } };
-			}
+			return runWithProxy(typeof params.proxy === "string" ? params.proxy : undefined, async () => {
+				const claim = typeof params.claim === "string" ? params.claim.trim() : "";
+				if (!claim) {
+					return { content: [{ type: "text", text: "Error: 'claim' is required." }], details: { error: "Missing claim" } };
+				}
 
-			const requestedQueries = Array.isArray(params.queries)
-				? params.queries.filter((query): query is string => typeof query === "string").map((query) => query.trim()).filter(Boolean)
-				: [];
-			const queries = (requestedQueries.length > 0 ? requestedQueries : [claim]).slice(0, 8);
-			const numResults = typeof params.numResults === "number" && Number.isFinite(params.numResults)
-				? Math.min(20, Math.max(1, Math.floor(params.numResults)))
-				: 5;
-			const domainFilter = Array.isArray(params.domainFilter)
-				? params.domainFilter.filter((domain): domain is string => typeof domain === "string")
-				: undefined;
-			const recencyFilter = normalizeRecencyFilter(params.recencyFilter);
-			const resultsByUrl = new Map<string, SearchResult>();
-			const summaries: string[] = [];
-			const errors: Array<{ query: string; error: string }> = [];
-			let provider: string | undefined;
+				const requestedQueries = Array.isArray(params.queries)
+					? params.queries.filter((query): query is string => typeof query === "string").map((query) => query.trim()).filter(Boolean)
+					: [];
+				const queries = (requestedQueries.length > 0 ? requestedQueries : [claim]).slice(0, 8);
+				const numResults = typeof params.numResults === "number" && Number.isFinite(params.numResults)
+					? Math.min(20, Math.max(1, Math.floor(params.numResults)))
+					: 5;
+				const domainFilter = Array.isArray(params.domainFilter)
+					? params.domainFilter.filter((domain): domain is string => typeof domain === "string")
+					: undefined;
+				const recencyFilter = normalizeRecencyFilter(params.recencyFilter);
+				const resultsByUrl = new Map<string, SearchResult>();
+				const summaries: string[] = [];
+				const errors: Array<{ query: string; error: string }> = [];
+				let provider: string | undefined;
 
-			for (const query of queries) {
-				if (signal?.aborted) break;
-				try {
-					const response = await search(query, {
-						provider: resolveRequestedProvider(params.provider),
-						numResults,
-						recencyFilter,
-						domainFilter,
-						signal,
-						extensionContext: ctx,
-					});
+				for (const query of queries) {
 					if (signal?.aborted) break;
-					provider ??= response.provider;
-					if (response.answer) summaries.push(`${query}: ${response.answer}`);
-					for (const result of response.results) {
-						if (!resultsByUrl.has(result.url)) resultsByUrl.set(result.url, result);
+					try {
+						const response = await search(query, {
+							provider: resolveRequestedProvider(params.provider),
+							numResults,
+							recencyFilter,
+							domainFilter,
+							signal,
+							extensionContext: ctx,
+						});
+						if (signal?.aborted) break;
+						provider ??= response.provider;
+						if (response.answer) summaries.push(`${query}: ${response.answer}`);
+						for (const result of response.results) {
+							if (!resultsByUrl.has(result.url)) resultsByUrl.set(result.url, result);
+						}
+					} catch (err) {
+						if (signal?.aborted || isAbortError(err)) break;
+						errors.push({ query, error: err instanceof Error ? err.message : String(err) });
 					}
-				} catch (err) {
-					if (signal?.aborted || isAbortError(err)) break;
-					errors.push({ query, error: err instanceof Error ? err.message : String(err) });
 				}
-			}
 
-			const results = [...resultsByUrl.values()].slice(0, 20).map((result, index) => ({ ...result, rank: index + 1 }));
-			let fetched: ExtractedContent[] = [];
-			if (params.fetchContent && results.length > 0) {
-				const urls = results.slice(0, 5).map((result) => result.url);
-				try {
-					fetched = await fetchAllContent(urls, signal, { toolNames: registeredToolNames });
-				} catch (err) {
-					if (signal?.aborted || isAbortError(err)) throw err;
-					fetched = urls.map((url) => ({ url, title: "", content: "", error: err instanceof Error ? err.message : String(err) }));
+				const results = [...resultsByUrl.values()].slice(0, 20).map((result, index) => ({ ...result, rank: index + 1 }));
+				let fetched: ExtractedContent[] = [];
+				if (params.fetchContent && results.length > 0) {
+					const urls = results.slice(0, 5).map((result) => result.url);
+					try {
+						fetched = await fetchAllContent(urls, signal, withRegisteredFetchOptions(undefined, registeredToolNames, typeof params.proxy === "string" ? params.proxy : undefined));
+					} catch (err) {
+						if (signal?.aborted || isAbortError(err)) throw err;
+						fetched = urls.map((url) => ({ url, title: "", content: "", error: err instanceof Error ? err.message : String(err) }));
+					}
 				}
-			}
-			const artifact = withClaimAssessment(buildResearchArtifact({
-				query: claim,
-				provider,
-				summary: summaries.length > 0 ? summaries.join("\n\n") : undefined,
-				results,
-				fetched,
-				recency: recencyFilter,
-				domainFilter,
-			}), [claim]);
-			if (errors.length > 0) artifact.errors = errors;
-			storeResearchArtifact(artifact);
-			pi.appendEntry("web-search-results", {
-				id: artifact.id,
-				type: "research",
-				timestamp: artifact.timestamp,
-				artifact,
+				const artifact = withClaimAssessment(buildResearchArtifact({
+					query: claim,
+					provider,
+					summary: summaries.length > 0 ? summaries.join("\n\n") : undefined,
+					results,
+					fetched,
+					recency: recencyFilter,
+					domainFilter,
+				}), [claim]);
+				if (errors.length > 0) artifact.errors = errors;
+				storeResearchArtifact(artifact);
+				pi.appendEntry("web-search-results", {
+					id: artifact.id,
+					type: "research",
+					timestamp: artifact.timestamp,
+					artifact,
+				});
+				return {
+					content: [{ type: "text", text: formatSourceCheckResult(artifact, getSearchContentEnabled ? toolNames.getSearchContent : null) }],
+					details: { responseId: artifact.id, artifact, sourceCount: artifact.sources.length, passageCount: artifact.passages.length },
+				};
 			});
-			return {
-				content: [{ type: "text", text: formatSourceCheckResult(artifact, getSearchContentEnabled ? toolNames.getSearchContent : null) }],
-				details: { responseId: artifact.id, artifact, sourceCount: artifact.sources.length, passageCount: artifact.passages.length },
-			};
 		},
 	});
 
@@ -2372,7 +2443,7 @@ export default function (pi: ExtensionAPI) {
 				description: "Fetch mode: readable (default extraction), raw (exact textual HTTP body), or answer (answer prompt using only fetched content).",
 			})),
 			answerModel: Type.Optional(Type.String({
-				description: "Optional provider/model-id override for mode answer. Defaults to the current Pi model.",
+				description: "Optional provider/model-id override for mode answer. Defaults to fetch.answerProvider + fetch.answerModel when configured, otherwise the current Pi model.",
 			})),
 			timestamp: Type.Optional(Type.String({
 				description: "Extract video frame(s) at a timestamp or time range. Single: '1:23:45', '23:45', or '85' (seconds). Range: '23:41-25:00' extracts evenly-spaced frames across that span (default 6). Use frames with ranges to control density; single+frames uses a fixed 5s interval. YouTube requires yt-dlp + ffmpeg; local videos require ffmpeg. Use a range when you know the approximate area but not the exact moment — you'll get a contact sheet to visually identify the right frame.",
@@ -2388,6 +2459,9 @@ export default function (pi: ExtensionAPI) {
 			auth: Type.Optional(Type.Union([Type.String(), Type.Boolean()], {
 				description: "Opt into an authFetch profile for local browser-cookie fetching. Use a profile name, or true only when exactly one profile exists.",
 			})),
+			proxy: Type.Optional(Type.String({
+				description: "http(s) proxy URL (e.g. http://host:port) used for this fetch. Needed when the target is unreachable directly; localhost and NO_PROXY hosts always bypass the proxy. Empty string forces direct access.",
+			})),
 		}),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx): Promise<AgentToolResult<Record<string, unknown>>> {
@@ -2399,164 +2473,164 @@ export default function (pi: ExtensionAPI) {
 				return { content: [{ type: "text", text: `Error: ${error}` }], details: { error } };
 			}
 			const { urlList, options } = normalized;
-			const mode = options.mode ?? "readable";
-			if (mode === "answer" && !options.prompt) {
-				return { content: [{ type: "text", text: "Error: mode answer requires prompt." }], details: { error: "mode answer requires prompt" } };
-			}
-			if (mode === "raw" && (options.forceClone === true || options.timestamp || options.frames || options.prompt || options.model || options.answerModel)) {
-				return { content: [{ type: "text", text: "Error: mode raw cannot be combined with forceClone, prompt, timestamp, frames, model, or answerModel." }], details: { error: "Incompatible raw mode options" } };
-			}
-			if (mode !== "answer" && options.answerModel) {
-				return { content: [{ type: "text", text: "Error: answerModel requires mode answer." }], details: { error: "answerModel requires mode answer" } };
-			}
-			if (mode === "answer" && options.model) {
-				return { content: [{ type: "text", text: "Error: use answerModel, not model, with mode answer." }], details: { error: "model is incompatible with mode answer" } };
-			}
-			if (mode === "answer" && options.auth !== undefined) {
-				return { content: [{ type: "text", text: "Error: auth cannot be combined with mode answer." }], details: { error: "auth cannot be combined with mode answer" } };
-			}
-			let authFetchProfile: AuthFetchProfile | undefined;
-			if (options.auth !== undefined) {
-				try {
-					authFetchProfile = resolveAuthFetchProfile(options.auth);
-				} catch (err) {
-					const error = err instanceof Error ? err.message : String(err);
-					return { content: [{ type: "text", text: `Error: ${error}` }], details: { error } };
+			return runWithProxy(options.proxy, async () => {
+				const mode = options.mode ?? "readable";
+				if (mode === "answer" && !options.prompt) {
+					return { content: [{ type: "text", text: "Error: mode answer requires prompt." }], details: { error: "mode answer requires prompt" } };
 				}
-			}
-			if (urlList.length === 0) {
-				return {
-					content: [{ type: "text", text: "Error: No URL provided." }],
-					details: { error: "No URL provided" },
-				};
-			}
-
-			onUpdate?.({
-				content: [{ type: "text", text: `Fetching ${urlList.length} URL(s)...` }],
-				details: { phase: "fetch", progress: 0 },
-			});
-
-			const { answerModel: _answerModel, auth: _auth, ...extractionOptions } = options;
-			const fetchOptions = mode === "answer"
-				? (() => {
-					const { prompt: _prompt, ...rest } = extractionOptions;
-					return { ...rest, ...(authFetchProfile ? { authFetchProfile } : {}) };
-				})()
-				: { ...extractionOptions, ...(authFetchProfile ? { authFetchProfile } : {}) };
-			const fetchResults = await fetchAllContent(urlList, signal, { ...fetchOptions, toolNames: registeredToolNames });
-			const presentedResults = mode === "answer"
-				? await Promise.all(fetchResults.map(async result => {
-					if (result.error) return result;
-					if (result.thumbnail || result.mimeType?.startsWith("image/")) {
-						return { ...result, error: "Page answer requires textual fetched content" };
-					}
+				if (mode === "raw" && (options.forceClone === true || options.timestamp || options.frames || options.prompt || options.model || options.answerModel)) {
+					return { content: [{ type: "text", text: "Error: mode raw cannot be combined with forceClone, prompt, timestamp, frames, model, or answerModel." }], details: { error: "Incompatible raw mode options" } };
+				}
+				if (mode !== "answer" && options.answerModel) {
+					return { content: [{ type: "text", text: "Error: answerModel requires mode answer." }], details: { error: "answerModel requires mode answer" } };
+				}
+				if (mode === "answer" && options.model) {
+					return { content: [{ type: "text", text: "Error: use answerModel, not model, with mode answer." }], details: { error: "model is incompatible with mode answer" } };
+				}
+				if (mode === "answer" && options.auth !== undefined) {
+					return { content: [{ type: "text", text: "Error: auth cannot be combined with mode answer." }], details: { error: "auth cannot be combined with mode answer" } };
+				}
+				let authFetchProfile: AuthFetchProfile | undefined;
+				if (options.auth !== undefined) {
 					try {
-						const answer = await answerFromPage({
-							question: options.prompt!,
-							pageText: result.content,
-							sourceUrl: result.url,
-							...(options.answerModel ? { model: options.answerModel } : {}),
-						}, ctx, signal);
-						return { ...result, content: answer.text };
+						authFetchProfile = resolveAuthFetchProfile(options.auth);
 					} catch (err) {
-						return { ...result, error: `Page answer failed: ${err instanceof Error ? err.message : String(err)}` };
+						const error = err instanceof Error ? err.message : String(err);
+						return { content: [{ type: "text", text: `Error: ${error}` }], details: { error } };
 					}
-				}))
-				: fetchResults;
-			const successful = presentedResults.filter((r) => !r.error).length;
-			const totalChars = presentedResults.reduce((sum, r) => sum + r.content.length, 0);
-
-			const responseId = generateId();
-			const data = {
-				id: responseId,
-				type: "fetch",
-				timestamp: Date.now(),
-				urls: stripThumbnails(fetchResults),
-			} satisfies StoredSearchData & { type: "fetch"; urls: ExtractedContent[] };
-			const storedContent = storeFetchResult(pi, responseId, data, authFetchProfile);
-
-			// Single URL: return content directly (possibly truncated) with responseId
-			if (urlList.length === 1) {
-				const result = presentedResults[0];
-				if (result.error) {
+				}
+				if (urlList.length === 0) {
 					return {
-						content: [{ type: "text", text: `Error: ${result.error}` }],
-						details: { urls: urlList, urlCount: 1, successful: 0, error: result.error, ...(storedContent ? { responseId } : {}), prompt: params.prompt, timestamp: params.timestamp, frames: params.frames },
+						content: [{ type: "text", text: "Error: No URL provided." }],
+						details: { error: "No URL provided" },
 					};
 				}
 
-				const fullLength = result.content.length;
-				const slice = initialContentSlice(result.content, getMaxInlineContentChars());
-				const truncated = slice.endOffset < fullLength;
-				let output = slice.text;
+				onUpdate?.({
+					content: [{ type: "text", text: `Fetching ${urlList.length} URL(s)...` }],
+					details: { phase: "fetch", progress: 0 },
+				});
 
-				if (truncated) {
-					output += `\n\n---\nShowing ${slice.endOffset} of ${fullLength} chars, ${slice.shownBytes} of ${slice.totalBytes} bytes, and ${slice.shownLines} of ${slice.totalLines} lines. `;
-					output += storedContent
-						? getSearchContentEnabled
-							? `Use ${toolNames.getSearchContent}({ responseId: "${responseId}", urlIndex: 0, offset: ${slice.endOffset} }) for the next slice.`
-							: "Content retrieval is not registered."
-						: "Authenticated fetch cache is off; repeat the fetch to read more.";
-				}
+				const { answerModel: _answerModel, auth: _auth, ...extractionOptions } = options;
+				const fetchOptions = mode === "answer"
+					? (() => {
+						const { prompt: _prompt, ...rest } = extractionOptions;
+						return { ...rest, ...(authFetchProfile ? { authFetchProfile } : {}) };
+					})()
+					: { ...extractionOptions, ...(authFetchProfile ? { authFetchProfile } : {}) };
+				const fetchResults = await fetchAllContent(urlList, signal, withRegisteredFetchOptions(fetchOptions, registeredToolNames, options.proxy));
+				const presentedResults = mode === "answer"
+					? await Promise.all(fetchResults.map(async result => {
+						if (result.error) return result;
+						if (result.thumbnail || result.mimeType?.startsWith("image/")) {
+							return { ...result, error: "Page answer requires textual fetched content" };
+						}
+						try {
+							const answer = await answerFromPage({
+								question: options.prompt!,
+								pageText: result.content,
+								sourceUrl: result.url,
+								...(options.answerModel ? { model: options.answerModel } : {}),
+							}, ctx, signal);
+							return { ...result, content: answer.text };
+						} catch (err) {
+							return { ...result, error: `Page answer failed: ${err instanceof Error ? err.message : String(err)}` };
+						}
+					}))
+					: fetchResults;
+				const successful = presentedResults.filter((r) => !r.error).length;
+				const totalChars = presentedResults.reduce((sum, r) => sum + r.content.length, 0);
 
-				const content: Array<TextContent | ImageContent> = [];
-				if (result.frames?.length) {
-					for (const frame of result.frames) {
-						content.push({ type: "image", data: frame.data, mimeType: frame.mimeType });
-						content.push({ type: "text", text: `Frame at ${frame.timestamp}` });
+				const responseId = generateId();
+				const data = {
+					id: responseId,
+					type: "fetch",
+					timestamp: Date.now(),
+					urls: stripThumbnails(fetchResults),
+				} satisfies StoredSearchData & { type: "fetch"; urls: ExtractedContent[] };
+				const storedContent = storeFetchResult(pi, responseId, data, authFetchProfile);
+
+				if (urlList.length === 1) {
+					const result = presentedResults[0];
+					if (result.error) {
+						return {
+							content: [{ type: "text", text: `Error: ${result.error}` }],
+							details: { urls: urlList, urlCount: 1, successful: 0, error: result.error, ...(storedContent ? { responseId } : {}), prompt: params.prompt, timestamp: params.timestamp, frames: params.frames },
+						};
 					}
-				} else if (result.thumbnail) {
-					content.push({ type: "image", data: result.thumbnail.data, mimeType: result.thumbnail.mimeType });
-				}
-				content.push({ type: "text", text: output });
 
-				const imageCount = (result.frames?.length ?? 0) + (result.thumbnail ? 1 : 0);
+					const fullLength = result.content.length;
+					const slice = initialContentSlice(result.content, getMaxInlineContentChars());
+					const truncated = slice.endOffset < fullLength;
+					let output = slice.text;
+
+					if (truncated) {
+						output += `\n\n---\nShowing ${slice.endOffset} of ${fullLength} chars, ${slice.shownBytes} of ${slice.totalBytes} bytes, and ${slice.shownLines} of ${slice.totalLines} lines. `;
+						output += storedContent
+							? getSearchContentEnabled
+								? `Use ${toolNames.getSearchContent}({ responseId: "${responseId}", urlIndex: 0, offset: ${slice.endOffset} }) for the next slice.`
+								: "Content retrieval is not registered."
+							: "Authenticated fetch cache is off; repeat the fetch to read more.";
+					}
+
+					const content: Array<TextContent | ImageContent> = [];
+					if (result.frames?.length) {
+						for (const frame of result.frames) {
+							content.push({ type: "image", data: frame.data, mimeType: frame.mimeType });
+							content.push({ type: "text", text: `Frame at ${frame.timestamp}` });
+						}
+					} else if (result.thumbnail) {
+						content.push({ type: "image", data: result.thumbnail.data, mimeType: result.thumbnail.mimeType });
+					}
+					content.push({ type: "text", text: output });
+
+					const imageCount = (result.frames?.length ?? 0) + (result.thumbnail ? 1 : 0);
+					return {
+						content,
+						details: {
+							urls: urlList,
+							urlCount: 1,
+							successful: 1,
+							totalChars: fullLength,
+							title: result.title,
+							...(storedContent ? { responseId } : {}),
+							truncated,
+							hasImage: imageCount > 0,
+							imageCount,
+							prompt: params.prompt,
+							timestamp: params.timestamp,
+							frames: params.frames,
+							duration: result.duration,
+							mode,
+							mimeType: result.mimeType,
+							status: result.status,
+							totalBytes: slice.totalBytes,
+							totalLines: slice.totalLines,
+							shownBytes: slice.shownBytes,
+							shownLines: slice.shownLines,
+						},
+					};
+				}
+
+				let output = "## Fetched URLs\n\n";
+				for (const { url, title, content, error } of presentedResults) {
+					if (error) {
+						output += `- ${url}: Error - ${error}\n`;
+					} else {
+						output += `- ${title || url} (${content.length} chars)\n`;
+					}
+				}
+				output += storedContent
+					? getSearchContentEnabled
+						? `\n---\nUse ${toolNames.getSearchContent}({ responseId: "${responseId}", urlIndex: 0 }) to retrieve bounded content slices.`
+						: "\n---\nContent retrieval is not registered."
+					: "\n---\nAuthenticated fetch cache is off; repeat the fetch to read content.";
+
 				return {
-					content,
-					details: {
-						urls: urlList,
-						urlCount: 1,
-						successful: 1,
-						totalChars: fullLength,
-						title: result.title,
-						...(storedContent ? { responseId } : {}),
-						truncated,
-						hasImage: imageCount > 0,
-						imageCount,
-						prompt: params.prompt,
-						timestamp: params.timestamp,
-						frames: params.frames,
-						duration: result.duration,
-						mode,
-						mimeType: result.mimeType,
-						status: result.status,
-						totalBytes: slice.totalBytes,
-						totalLines: slice.totalLines,
-						shownBytes: slice.shownBytes,
-						shownLines: slice.shownLines,
-					},
+					content: [{ type: "text", text: output }],
+					details: { urls: urlList, urlCount: urlList.length, successful, totalChars, ...(storedContent ? { responseId } : {}) },
 				};
-			}
-
-			// Multi-URL: existing behavior (summary + responseId)
-			let output = "## Fetched URLs\n\n";
-			for (const { url, title, content, error } of presentedResults) {
-				if (error) {
-					output += `- ${url}: Error - ${error}\n`;
-				} else {
-					output += `- ${title || url} (${content.length} chars)\n`;
-				}
-			}
-			output += storedContent
-				? getSearchContentEnabled
-					? `\n---\nUse ${toolNames.getSearchContent}({ responseId: "${responseId}", urlIndex: 0 }) to retrieve bounded content slices.`
-					: "\n---\nContent retrieval is not registered."
-				: "\n---\nAuthenticated fetch cache is off; repeat the fetch to read content.";
-
-			return {
-				content: [{ type: "text", text: output }],
-				details: { urls: urlList, urlCount: urlList.length, successful, totalChars, ...(storedContent ? { responseId } : {}) },
-			};
+			});
 		},
 
 		renderCall(args, theme) {
@@ -2715,8 +2789,8 @@ export default function (pi: ExtensionAPI) {
 			findMode: Type.Optional(StringEnum(["exact", "case-insensitive", "fuzzy"], { description: "Matching mode for findText (default: case-insensitive). Requires findText." })),
 		}),
 
-		async execute(_toolCallId, params): Promise<AgentToolResult<Record<string, unknown>>> {
-			params = normalizeGetSearchContentParams(params);
+		async execute(_toolCallId, rawParams): Promise<AgentToolResult<Record<string, unknown>>> {
+			const params = normalizeGetSearchContentParams(rawParams);
 			if (params.findMode !== undefined && params.findText === undefined) {
 				return {
 					content: [{ type: "text", text: `findMode ${formatInputValue(params.findMode)} requires findText; provide findText or omit findMode.` }],
@@ -2742,7 +2816,7 @@ export default function (pi: ExtensionAPI) {
 				const serialized = JSON.stringify(artifact, null, 2);
 				if (params.findText !== undefined) {
 					try {
-						const found = findContent(serialized, normalizeFindQueries(params.findText), (params.findMode ?? "case-insensitive") as FindMode);
+						const found = findContent(serialized, normalizeFindQueries(params.findText), params.findMode ?? "case-insensitive");
 						const { text, ...findDetails } = found;
 						return {
 							content: [{ type: "text", text }],
@@ -2824,7 +2898,7 @@ export default function (pi: ExtensionAPI) {
 				const fullResults = formatFullResults(queryData);
 				if (params.findText !== undefined) {
 					try {
-						const found = findContent(fullResults, normalizeFindQueries(params.findText), (params.findMode ?? "case-insensitive") as FindMode);
+						const found = findContent(fullResults, normalizeFindQueries(params.findText), params.findMode ?? "case-insensitive");
 						const { text, ...findDetails } = found;
 						return {
 							content: [{ type: "text", text }],
@@ -2886,7 +2960,7 @@ export default function (pi: ExtensionAPI) {
 
 				if (params.findText !== undefined) {
 					try {
-						const found = findContent(urlData.content, normalizeFindQueries(params.findText), (params.findMode ?? "case-insensitive") as FindMode);
+						const found = findContent(urlData.content, normalizeFindQueries(params.findText), params.findMode ?? "case-insensitive");
 						const { text, ...findDetails } = found;
 						return {
 							content: [{ type: "text", text: `# ${urlData.title || urlData.url}\n\n${text}` }],

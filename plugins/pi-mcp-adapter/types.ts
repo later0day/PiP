@@ -378,7 +378,7 @@ export interface OAuthConfig {
   scope?: string;
   /** Extra authorization URL parameters for provider-specific extensions. Flow-owned parameters cannot be overridden. */
   authorizationParams?: Record<string, string>;
-  /** Exact authorization-code redirect URI for pre-registered clients */
+  /** Exact authorization-code redirect URI for pre-registered clients. HTTPS redirects use manual callback URL completion. */
   redirectUri?: string;
   /** Client display name for dynamic registration */
   clientName?: string;
@@ -386,6 +386,8 @@ export interface OAuthConfig {
   clientUri?: string;
   /** Client logo URL for dynamic registration; shown on consent screens */
   logoUri?: string;
+  /** HTTPS URL for an authorization-server metadata document used instead of MCP discovery */
+  authServerMetadataUrl?: string;
   /** Security-weakening escape hatch for known-misconfigured authorization servers. */
   skipIssuerMetadataValidation?: boolean;
 }
@@ -686,6 +688,9 @@ export interface ServerCacheEntry {
   resources: CachedResource[];
   prompts?: CachedPrompt[];
   instructions?: string;
+  /** Server-level hints from the aggregated tools/list result. */
+  ttlMs?: ListToolsResult["ttlMs"];
+  cacheScope?: ListToolsResult["cacheScope"];
   cachedAt: number;
 }
 

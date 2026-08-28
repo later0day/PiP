@@ -27,6 +27,41 @@ const ctx = {
 };
 
 describe("async runner execution", () => {
+	it("uses supplied discovery context for missing async agents", () => {
+		const result = buildAsyncRunnerSteps("missing-agent", {
+			chain: [{ agent: "missing", task: "Do not launch" }],
+			agents: [agent("arbitrary")],
+			unknownAgentDiagnosticContext: {
+				cwd: path.resolve(ctx.cwd),
+				scope: "both",
+				directories: [{ source: "project", path: path.join(ctx.cwd, ".pi", "agents"), state: "empty" }],
+				agents: [agent("discovered")],
+			},
+			ctx,
+			maxSubagentDepth: 1,
+			asyncDir: path.join(process.cwd(), ".tmp-missing-agent"),
+		});
+		assert.ok("error" in result);
+		assert.match(result.error, /^Unknown agent: missing\nEffective cwd: /);
+		assert.match(result.error, /discovered \(project\)/);
+		assert.doesNotMatch(result.error, /arbitrary \(project\)/);
+	});
+
+	it("uses the resolved cwd override for no-context missing-agent fallback discovery", () => {
+		const override = path.join("diagnostic-cwd-override", "nested");
+		const result = buildAsyncRunnerSteps("missing-agent-cwd", {
+			chain: [{ agent: "missing", task: "Do not launch" }],
+			agents: [agent("arbitrary")],
+			ctx,
+			cwd: override,
+			maxSubagentDepth: 1,
+			asyncDir: path.join(process.cwd(), ".tmp-missing-agent-cwd"),
+		});
+		assert.ok("error" in result);
+		assert.ok(result.error.startsWith(`Unknown agent: missing\nEffective cwd: ${path.resolve(ctx.cwd, override)}`));
+		assert.doesNotMatch(result.error, /arbitrary \(project\)/);
+	});
+
 	it("formats interactive yield and headless auto-drain guidance separately", () => {
 		const interactive = formatAsyncStartedMessage("Async: worker [interactive]", true);
 		assert.match(interactive, /interactive session[\s\S]*return control/i);
@@ -72,6 +107,31 @@ describe("async runner execution", () => {
 		assert.deepEqual(result.steps[0]?.toolBudget, { hard: 3, block: ["find"] });
 		assert.equal(result.steps[0]?.waitToolEnabled, false);
 		assert.deepEqual(result.steps[1]?.toolBudget, { hard: 2, block: ["grep"] });
+	});
+	it("carries the resolved model context window into async runner steps", () => {
+		const result = buildAsyncRunnerSteps("context-limit-run", {
+			chain: [{ agent: "worker", task: "inspect context" }],
+			agents: [{ ...agent("worker"), model: "mock/context" }],
+			availableModels: [{ provider: "mock", id: "context", fullId: "mock/context", contextWindow: 128_000 }],
+			ctx,
+			asyncDir: path.join(process.cwd(), ".tmp-async-context-limit-test"),
+			maxSubagentDepth: 2,
+		});
+
+		assert.ok("steps" in result, "expected successful step build");
+		assert.equal(result.steps[0]?.contextLimit, 128_000);
+	});
+
+	it("carries explicit nested fanout authorization into async runner steps", () => {
+		const nestedAgent = { ...agent("delegator"), allowNestedSubagents: true };
+		const result = buildAsyncRunnerSteps("nested-fanout-run", {
+			chain: [{ agent: "delegator", task: "delegate" }],
+			agents: [nestedAgent],
+			ctx,
+		});
+
+		assert.equal(result.error, undefined);
+		assert.equal(result.steps[0]?.allowNestedSubagents, true);
 	});
 
 	it("assigns default and agent-level deadlines to async serial and parallel children", () => {
